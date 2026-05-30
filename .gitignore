@@ -12,18 +12,23 @@
 *.ppt
 *.caj
 
+# === 数据集压缩包 ===
+*.zip
+*.rar
+*.7z
+
 # === 数据集目录（图片数据） ===
 data/RDD2022_*/
-data/__pycache__/
 filetopost/
 
 # === 序列化数据 ===
 *.pkl
 *.pickle
 
-# === CSV 数据文件（保留 lane_coeffs.csv 配置） ===
+# === CSV 数据文件（保留 lane_coeffs.csv 车道系数配置） ===
 trajectory_full*.csv
 traffic_*_change.csv
+location1/data/
 backup/
 
 # === 原始数据目录 ===
@@ -35,6 +40,9 @@ __pycache__/
 cache/
 rubbish/
 %22E%3A/
+
+# === Windows 快捷方式 ===
+*.lnk
 
 # === IDE ===
 .idea/

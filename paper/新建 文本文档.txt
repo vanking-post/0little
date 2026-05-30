@@ -1,0 +1,8 @@
+A freeway vehicle early warning method based on risk map: Enhancing traffic safety through global perspective characterization of driving risk
+
+An improved risk estimation model of lane change using naturalistic vehicle trajectories
+
+
+F-F Diagram: A Two-Dimensional Surrogate Safety Indicator Based on Field Theory for Lane Change Risk Assessment
+
+A new method of temporal and spatial risk estimation for lane change considering conventional recognition defects

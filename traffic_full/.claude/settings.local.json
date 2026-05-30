@@ -1,0 +1,26 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(python -c ' *)",
+      "Bash(python risk_modeling.py)",
+      "Bash(python visualize_per_vehicle.py)",
+      "Read(//e/0little/location1/**)",
+      "Bash(python model.py)",
+      "Read(//e/0little/read/location1/**)",
+      "Read(//e/0little/read/**)",
+      "Bash(PYTHONIOENCODING=utf-8 python model.py)",
+      "Bash(PYTHONIOENCODING=utf-8 python process_all_locations.py)",
+      "Bash(python *)",
+      "Bash(PYTHONIOENCODING=utf-8 python model124.py)",
+      "Bash(PYTHONIOENCODING=utf-8 python visualize_per_vehicle_all.py)",
+      "Bash(PYTHONIOENCODING=utf-8 python risk_modeling_no5.py)",
+      "Bash(PYTHONIOENCODING=utf-8 python risk_modeling_smote.py)",
+      "Bash(PYTHONIOENCODING=utf-8 python risk_modeling_tuned.py)",
+      "Bash(PYTHONIOENCODING=utf-8 python risk_modeling_ST.py)"
+    ]
+  },
+  "enableAllProjectMcpServers": true,
+  "enabledMcpjsonServers": [
+    "jetbrains"
+  ]
+}

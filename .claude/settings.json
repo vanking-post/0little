@@ -1,0 +1,8 @@
+{
+  "permissions": {
+    "allow": [
+      "mcp__jetbrains__read_file",
+      "mcp__jetbrains__get_file_text_by_path"
+    ]
+  }
+}
