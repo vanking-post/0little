@@ -473,9 +473,7 @@ def plot_comparison(fold_metrics, random_results, models, title, save_name):
     fig.tight_layout()
     fig.savefig(os.path.join(OUT_DIR, save_name), dpi=120, bbox_inches='tight')
     plt.close(fig)
-    print(f'\n  ✅ {save_name}')
-
-
+    print(f'\n  [OK] {save_name}')
 def plot_confusion(random_results, models, title, save_name):
     names = [m for m in models if m in random_results]
     n = len(names)
@@ -505,9 +503,7 @@ def plot_confusion(random_results, models, title, save_name):
     fig.tight_layout()
     fig.savefig(os.path.join(OUT_DIR, save_name), dpi=120, bbox_inches='tight')
     plt.close(fig)
-    print(f'  ✅ {save_name}')
-
-
+    print(f'  [OK] {save_name}')
 def print_summary(fold_metrics, random_results, models):
     """打印最佳模型总结"""
     rr = {k: v for k, v in random_results.items() if k != '_data'}
@@ -581,7 +577,7 @@ def shap_analysis(model, X, feature_names, model_name, save_prefix='shap', max_d
     bar_path = os.path.join(OUT_DIR, f'{save_prefix}_{model_name}_importance_bar.png')
     fig.savefig(bar_path, dpi=120, bbox_inches='tight')
     plt.close(fig)
-    print(f'  ✅ {os.path.basename(bar_path)}')
+    print(f'  [OK] {os.path.basename(bar_path)}')
 
     # ── Beeswarm 图: 高风险类 (class 0) ──
     if n_classes >= 1:
@@ -597,7 +593,7 @@ def shap_analysis(model, X, feature_names, model_name, save_prefix='shap', max_d
     bee_path = os.path.join(OUT_DIR, f'{save_prefix}_{model_name}_beeswarm.png')
     plt.savefig(bee_path, dpi=120, bbox_inches='tight')
     plt.close()
-    print(f'  ✅ {os.path.basename(bee_path)}')
+    print(f'  [OK] {os.path.basename(bee_path)}')
 
     # ── 打印 Top-5 (三分类分别) ──
     print(f'  Top-5 特征 (总影响力排序):')
@@ -611,7 +607,10 @@ def shap_analysis(model, X, feature_names, model_name, save_prefix='shap', max_d
 
 def run_shap_analysis(random_results, models, save_prefix='shap'):
     """对随机划分结果中的 XGBoost/RF 自动执行 SHAP 分析"""
-    if not HAS_SHAP or '_data' not in random_results:
+    if not HAS_SHAP:
+        print('  [INFO] SHAP 未安装 (pip install shap)，跳过 SHAP 分析')
+        return
+    if '_data' not in random_results:
         return
     d = random_results['_data']
     for name in models:
@@ -620,4 +619,4 @@ def run_shap_analysis(random_results, models, save_prefix='shap'):
                 shap_analysis(random_results[name]['model'], d['X_test'],
                              d['feature_names'], name, save_prefix)
             except Exception as e:
-                print(f'  ⚠ SHAP 分析失败 ({name}): {e}')
+                print(f'  [WARN] SHAP 分析失败 ({name}): {e}')

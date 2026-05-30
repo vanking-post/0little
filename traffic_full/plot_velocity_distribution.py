@@ -13,7 +13,7 @@ DATA_DIR = 'E:/0little/traffic_full'
 OUT_DIR = os.path.join(DATA_DIR, 'analysis')
 
 # 10 个文件（排除 _tmp）
-files = sorted(glob.glob(os.path.join(DATA_DIR, '*.csv')))
+files = sorted(glob.glob(os.path.join(DATA_DIR, 'backup', '*.csv')))
 files = [f for f in files if '_tmp' not in os.path.basename(f)]
 
 os.makedirs(OUT_DIR, exist_ok=True)
@@ -82,18 +82,18 @@ print('\n===== 安全指标分布图 =====')
 LOC_DIRS = ['location1', 'location2', 'location3_part1', 'location4_part1', 'location5']
 METRIC_CONFIG = {
     'mTTC':    {'column': 'mTTC',    'label': 'mTTC (s)',     'unit': 's'},
-    'F_ETTC':  {'column': 'F_ETTC',  'label': 'F_ETTC (s)',   'unit': 's'},
+    'F_ETTC':  {'column': 'F_ETTC',  'label': 'F_ETTC (s)',   'unit': 's',   'xlim': (0, 200)},
     'PET':     {'column': 'PET',     'label': 'PET (s)',      'unit': 's'},
     'OL_PET':  {'column': 'OL_PET',  'label': 'OL_PET (s)',   'unit': 's'},
 }
 
-loc_files = []
+loc_files = []  # (path, location_name)
 for loc in LOC_DIRS:
     for side in ['left', 'right']:
         fp = os.path.join(DATA_DIR, '..', loc, f'traffic_{side}_change.csv')
         fp = os.path.normpath(fp)
         if os.path.exists(fp):
-            loc_files.append(fp)
+            loc_files.append((fp, loc))
 
 if not loc_files:
     print('[WARN] 未找到 traffic_*_change.csv，跳过安全指标分布图')
@@ -103,9 +103,10 @@ else:
         fig, axes = plt.subplots(5, 2, figsize=(20, 22))
         axes = axes.flatten()
 
-        for idx, fp in enumerate(loc_files):
+        for idx, (fp, loc_name) in enumerate(loc_files):
             ax = axes[idx]
-            fname = os.path.basename(fp).replace('.csv', '')
+            side_label = 'left' if 'left' in os.path.basename(fp) else 'right'
+            title_prefix = f'{loc_name}_{side_label}'
 
             df = pd.read_csv(fp)
 
@@ -120,7 +121,7 @@ else:
             if len(vals) == 0:
                 ax.text(0.5, 0.5, 'No valid data', ha='center', va='center',
                         transform=ax.transAxes, fontsize=12, color='gray')
-                ax.set_title(f'{fname}  (n=0)', fontsize=12, fontweight='bold')
+                ax.set_title(f'{title_prefix}  (n=0)', fontsize=12, fontweight='bold')
                 continue
 
             # 直方图
@@ -142,7 +143,9 @@ else:
 
             ax.set_xlabel(cfg['label'], fontsize=10)
             ax.set_ylabel('Density', fontsize=10)
-            ax.set_title(f'{fname}  (n={len(vals)})', fontsize=12, fontweight='bold')
+            ax.set_title(f'{title_prefix}  (n={len(vals)})', fontsize=12, fontweight='bold')
+            if 'xlim' in cfg:
+                ax.set_xlim(*cfg['xlim'])
             ax.grid(axis='y', alpha=0.3)
 
         # 隐藏多余子图（如果 loc_files < 10 则不处理，当前正好 10 个）

@@ -5,7 +5,7 @@ from step02clean import clean_by_direction
 from step03complete import complete_by_direction
 from step04smooth import smooth_by_direction
 from step05_sample import compute_features_with_mttc
-from step06change import extract_lane_change_samples
+from step06change import extract_lane_change_samples, extract_following_samples
 from step_visualizeXY import visualize_lane_change_samples
 import pandas as pd
 import numpy as np
@@ -61,6 +61,22 @@ def encode_safety_categories(df):
         df.loc[(df['F_ETTC'] > 0) & (df['F_ETTC'] < 2), 'F_ETTC_cat'] = 'dangerous'
         df.loc[(df['F_ETTC'] >= 2) & (df['F_ETTC'] < 5), 'F_ETTC_cat'] = 'cautious'
 
+    # F_mTTC: 目标车道前车 mTTC（若列存在则标注）
+    if 'F_mTTC' in df.columns:
+        df['F_mTTC_cat'] = 'safe'
+        fmt_invalid = np.isinf(df['F_mTTC'].values) | (df['F_mTTC'] == 0) | pd.isna(df['F_mTTC'].values)
+        df.loc[fmt_invalid, 'F_mTTC_cat'] = 'no_leader'
+        df.loc[(df['F_mTTC'] > 0) & (df['F_mTTC'] < 2), 'F_mTTC_cat'] = 'dangerous'
+        df.loc[(df['F_mTTC'] >= 2) & (df['F_mTTC'] < 5), 'F_mTTC_cat'] = 'cautious'
+
+    # B_mTTC: 后车 mTTC（若列存在则标注）
+    if 'B_mTTC' in df.columns:
+        df['B_mTTC_cat'] = 'safe'
+        bmt_invalid = np.isinf(df['B_mTTC'].values) | (df['B_mTTC'] == 0) | pd.isna(df['B_mTTC'].values)
+        df.loc[bmt_invalid, 'B_mTTC_cat'] = 'no_follower'
+        df.loc[(df['B_mTTC'] > 0) & (df['B_mTTC'] < 2), 'B_mTTC_cat'] = 'dangerous'
+        df.loc[(df['B_mTTC'] >= 2) & (df['B_mTTC'] < 5), 'B_mTTC_cat'] = 'cautious'
+
     # 布尔标志
     df['has_front_vehicle'] = (df['TTC'] > 0) | (df['Following_dist'] > 0)
     df['has_rear_vehicle'] = ~(np.isinf(df['PET'].values) | pd.isna(df['PET'].values))
@@ -101,11 +117,21 @@ def main_pipeline():
     df_left_2, df_right_2 = extract_lane_change_samples(df_sample_21, df_sample_22,
                             df_smooth_21, df_smooth_22, 5, 1.5)
 
+    # 跟驰样本提取（两个源文件分别提取后合并）
+    df_follow_1 = extract_following_samples(
+        df_sample_11, df_sample_12, df_smooth_11, df_smooth_12)
+    df_follow_2 = extract_following_samples(
+        df_sample_21, df_sample_22, df_smooth_21, df_smooth_22)
+    parts_f = [d for d in [df_follow_1, df_follow_2] if not d.empty]
+    df_following = pd.concat(parts_f, ignore_index=True) if parts_f else pd.DataFrame()
+
     # 安全指标分类编码
     df_left_1 = encode_safety_categories(df_left_1)
     df_right_1 = encode_safety_categories(df_right_1)
     df_left_2 = encode_safety_categories(df_left_2)
     df_right_2 = encode_safety_categories(df_right_2)
+    if not df_following.empty:
+        df_following = encode_safety_categories(df_following)
 
     # 按路段分别保存左右变道数据（不同路段车道线不同，不可合并）
     for name, df_data in [('1-1_left', df_left_1), ('1-1_right', df_right_1),
@@ -120,6 +146,12 @@ def main_pipeline():
                    df_left_1,df_right_1,lane_coeffs_dir11,lane_coeffs_dir12,save_dir1,42)
     visualize_lane_change_samples(df_sample_21,df_sample_22,
                     df_left_2,df_right_2,lane_coeffs_dir21,lane_coeffs_dir22,save_dir2,42)
+
+    # 保存跟驰样本
+    if not df_following.empty:
+        fout = os.path.join(save_dir, 'traffic_following_change.csv')
+        df_following.to_csv(fout, index=False, encoding='utf-8-sig')
+        print(f"跟驰数据已保存: {len(df_following)} 行, {df_following['ID'].nunique()} 辆车 -> {fout}")
 
     # 对 location5 原始变道数据编码并保存
     loc5_dir = r"E:\0little\read\CQSkyEyedata5\location5t"

@@ -157,12 +157,13 @@ def extract_lane_change_samples(df1, df2, full1=None, full2=None,
             nbr_ids = full_df[['ID', 'Frame', front_col, behind_col]].copy()
             result = result.merge(nbr_ids, on=['ID', 'Frame'], how='left')
 
-            # 邻车坐标/速度表
-            nbr_xyv = full_df[['ID', 'Frame', 'X', 'Y', 'long_Vel', 'lat_Vel']].copy()
+            # 邻车坐标/速度/加速度表
+            nbr_xyv = full_df[['ID', 'Frame', 'X', 'Y', 'long_Vel', 'lat_Vel', 'long_Acc']].copy()
 
             # --- 目标车道前车 ---
             front = nbr_xyv.rename(columns={'ID': 'FID', 'X': 'FX', 'Y': 'FY',
-                                             'long_Vel': 'FLon', 'lat_Vel': 'FLat'})
+                                             'long_Vel': 'FLon', 'lat_Vel': 'FLat',
+                                             'long_Acc': 'FAcc'})
             result = result.merge(front, left_on=[front_col, 'Frame'],
                                    right_on=['FID', 'Frame'], how='left')
 
@@ -186,9 +187,21 @@ def extract_lane_change_samples(df1, df2, full1=None, full2=None,
                 (sd_ego - result[gap_front] - brake_front).clip(lower=0).round(3), 0.0
             )
 
+            # F_mTTC: 本车追目标车道前车（考虑加速度）
+            f_dv = result['long_Vel'] - result['FLon']
+            f_da = result['long_Acc'] - result['FAcc']
+            f_dist = result[gap_front]
+            f_disc = f_dv ** 2 + 2 * f_da * f_dist
+            f_mttc = np.full(len(result), np.inf)
+            f_valid = (f_dv > 0) & (f_disc > 0) & (f_da != 0)
+            if f_valid.any():
+                f_mttc[f_valid] = (-f_dv[f_valid] + np.sqrt(f_disc[f_valid])) / f_da[f_valid]
+            result['F_mTTC'] = np.round(f_mttc, 2)
+
             # --- 目标车道后车（后车追尾本车） ---
             behind = nbr_xyv.rename(columns={'ID': 'BID', 'X': 'BX', 'Y': 'BY',
-                                              'long_Vel': 'BLon', 'lat_Vel': 'BLat'})
+                                              'long_Vel': 'BLon', 'lat_Vel': 'BLat',
+                                              'long_Acc': 'BAcc'})
             result = result.merge(behind, left_on=[behind_col, 'Frame'],
                                    right_on=['BID', 'Frame'], how='left')
 
@@ -210,9 +223,20 @@ def extract_lane_change_samples(df1, df2, full1=None, full2=None,
                 (sd_b - result[gap_behind] - brake_ego).clip(lower=0).round(3), 0.0
             )
 
+            # B_mTTC: 后车追本车（考虑加速度）
+            b_dv = result['BLon'] - result['long_Vel']
+            b_da = result['BAcc'] - result['long_Acc']
+            b_dist = result[gap_behind]
+            b_disc = b_dv ** 2 + 2 * b_da * b_dist
+            b_mttc = np.full(len(result), np.inf)
+            b_valid = (b_dv > 0) & (b_disc > 0) & (b_da != 0)
+            if b_valid.any():
+                b_mttc[b_valid] = (-b_dv[b_valid] + np.sqrt(b_disc[b_valid])) / b_da[b_valid]
+            result['B_mTTC'] = np.round(b_mttc, 2)
+
             # 清理 merge 产生的临时列
-            result.drop(columns=['FID', 'FX', 'FY', 'FLon', 'FLat',
-                                  'BID', 'BX', 'BY', 'BLon', 'BLat',
+            result.drop(columns=['FID', 'FX', 'FY', 'FLon', 'FLat', 'FAcc',
+                                  'BID', 'BX', 'BY', 'BLon', 'BLat', 'BAcc',
                                   front_col, behind_col],
                         inplace=True, errors='ignore')
             return result
@@ -266,3 +290,98 @@ def extract_lane_change_samples(df1, df2, full1=None, full2=None,
     #         print(f"右变道 PET < 2秒比例: {(right_valid['PET'] < 2).mean():.1%}")
 
     return df_left, df_right
+
+
+def extract_following_samples(df1, df2, full1=None, full2=None, random_state=42):
+    """
+    从非变道车辆中提取跟驰样本（每车随机截取 50 帧），并计算后车追尾冲突 B_mTTC。
+
+    参数:
+        df1, df2: 两个方向的样本数据（step05 输出，有距离列）
+        full1, full2: 对应完整数据（有邻车 ID），用于 B_mTTC 计算
+        random_state: 随机种子
+
+    返回:
+        df_following: 跟驰样本 DataFrame（每条车辆一条 50 帧切片）
+    """
+    rng = np.random.default_rng(random_state)
+
+    def _process_direction(df, full_df):
+        """处理单个方向"""
+        if df is None or df.empty:
+            return pd.DataFrame()
+
+        # 识别变道车辆（LaneID 有变化）
+        change_ids = set()
+        for vid, grp in df.groupby('ID'):
+            lanes = grp['LaneID'].values
+            if len(lanes) >= 2 and (lanes[:-1] != lanes[1:]).any():
+                change_ids.add(vid)
+
+        follow_ids = set(df['ID'].unique()) - change_ids
+        if not follow_ids:
+            return pd.DataFrame()
+
+        has_full = full_df is not None and 'BehindID' in full_df.columns
+
+        samples = []
+        for vid in follow_ids:
+            grp = df[df['ID'] == vid].sort_values('Time')
+            if len(grp) <= 100:
+                continue
+            cut_idx = rng.integers(100, len(grp))
+            sample = grp.iloc[cut_idx - 100:cut_idx - 50].copy()
+            sample['Label'] = '跟驰'
+
+            # B_mTTC：后车追本车（考虑加速度）
+            if has_full:
+                nbr_ids = full_df[['ID', 'Frame', 'BehindID']].copy()
+                sample = sample.merge(nbr_ids, on=['ID', 'Frame'], how='left')
+
+                nbr_kin = full_df[['ID', 'Frame', 'long_Vel', 'long_Acc']].copy()
+                nbr_kin = nbr_kin.rename(
+                    columns={'ID': 'BID', 'long_Vel': 'BLon', 'long_Acc': 'BAcc'})
+                sample = sample.merge(nbr_kin, left_on=['BehindID', 'Frame'],
+                                      right_on=['BID', 'Frame'], how='left')
+
+                b_dv = sample['BLon'] - sample['long_Vel']
+                b_da = sample['BAcc'] - sample['long_Acc']
+                b_dist = sample['B_Dist']
+                b_disc = b_dv ** 2 + 2 * b_da * b_dist
+                b_mttc = np.full(len(sample), np.inf)
+                b_valid = (b_dv > 0) & (b_disc > 0) & (b_da != 0)
+                if b_valid.any():
+                    b_mttc[b_valid] = (-b_dv[b_valid] + np.sqrt(b_disc[b_valid])) / b_da[b_valid]
+                sample['B_mTTC'] = np.round(b_mttc, 2)
+                sample.drop(columns=['BehindID', 'BID', 'BLon', 'BAcc'],
+                            inplace=True, errors='ignore')
+            else:
+                sample['B_mTTC'] = 0.0
+            sample['B_mTTC'] = sample['B_mTTC'].replace([np.inf, -np.inf], 0)
+
+            # 补充变道相关列（用 NaN/inf 占位，保持列对齐）
+            for col in ['PET', 'OL_PET']:
+                if col not in sample.columns:
+                    sample[col] = np.inf
+            for col in ['F_ETTC', 'F_ERSD', 'B_ETTC', 'B_ERSD', 'F_mTTC']:
+                if col not in sample.columns:
+                    sample[col] = 0.0
+
+            samples.append(sample)
+
+        if not samples:
+            return pd.DataFrame()
+        return pd.concat(samples, ignore_index=True)
+
+    df_f1 = _process_direction(df1, full1) if df1 is not None else pd.DataFrame()
+    df_f2 = _process_direction(df2, full2) if df2 is not None else pd.DataFrame()
+
+    parts = [d for d in [df_f1, df_f2] if not d.empty]
+    if not parts:
+        print("\n[WARN] 无跟驰样本")
+        return pd.DataFrame()
+
+    result = pd.concat(parts, ignore_index=True)
+    print(f"\n{'='*20} 总体跟驰样本统计 {'='*20}")
+    print(f"总跟驰车辆数: {len(result)//50 if not result.empty else 0}")
+    return result

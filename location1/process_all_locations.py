@@ -14,13 +14,13 @@ import time
 # 确保能导入同目录下的 step 模块
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
-from step01 import split_by_direction #按照direction进行分流，分为dir1和dir2
-from step02clean import clean_by_direction #进行数据清洗
-from step03complete import complete_by_direction #对数据进行时序补全
-from step04smooth import smooth_by_direction #对数据几个连续列进行平滑
-from step05_sample import compute_features_with_mttc #特征重构，对邻车ID重构为欧氏距离，计算一些安全指标TTC,ETTC,RSD。
-from step06change import extract_lane_change_samples #提取变道样本,计算一些变道安全指标，PET,OL_PET。
-from model import encode_safety_categories #进行五个指标的标注
+from step01 import split_by_direction
+from step02clean import clean_by_direction
+from step03complete import complete_by_direction
+from step04smooth import smooth_by_direction
+from step05_sample import compute_features_with_mttc
+from step06change import extract_lane_change_samples, extract_following_samples
+from model import encode_safety_categories
 
 # ==================== 配置 ====================
 LANE_COEFFS_FILE = r"E:\0little\lane_coeffs.xlsx"
@@ -84,7 +84,7 @@ def convert_xlsx_to_csv(xlsx_path, csv_path):
 
 
 # ==================== 单文件流水线 ====================
-def process_single_file(csv_path):
+def process_single_file(csv_path, out_dir=None):
     """
     对单个 CSV 文件运行完整流水线，返回 (df_left, df_right, df_traj) 或 (None, None, None)
     df_traj: 变道车辆的精简完整轨迹 (ID, Frame, X, Y, Direction)
@@ -154,6 +154,19 @@ def process_single_file(csv_path):
             sub['Source'] = prefix
             traj_parts.append(sub)
         df_traj = pd.concat(traj_parts, ignore_index=True) if traj_parts else pd.DataFrame()
+
+        # 提取跟驰样本
+        df_following = extract_following_samples(df_sample_1, df_sample_2,
+                                                  df_smooth_1, df_smooth_2)
+        if df_following is not None and len(df_following) > 0:
+            df_following['Source'] = prefix
+            df_following = encode_safety_categories(df_following)
+            fout = os.path.join(out_dir, 'traffic_following_change.csv')
+            if os.path.exists(fout):
+                existing = pd.read_csv(fout)
+                df_following = pd.concat([existing, df_following], ignore_index=True)
+            df_following.to_csv(fout, index=False, encoding='utf-8-sig')
+            print(f"    跟驰: {len(df_following)} 行, {df_following['ID'].nunique()} 辆车")
 
         gc.collect()
         return df_left, df_right, df_traj, df_smooth_full
@@ -443,6 +456,22 @@ def process_location5():
             if d is not None and not d.empty and 'time' in d.columns and 'Time' not in d.columns:
                 d.rename(columns={'time': 'Time'}, inplace=True)
 
+        # ---------- 跟驰样本提取 ----------
+        print("\n  --- Step 6b: 跟驰样本提取 (location5 模块) ---")
+        df_following = step06_l5.extract_following_samples(
+            df_sample_e, df_sample_w, df_smooth_e, df_smooth_w)
+        if df_following is not None and len(df_following) > 0:
+            if 'time' in df_following.columns and 'Time' not in df_following.columns:
+                df_following.rename(columns={'time': 'Time'}, inplace=True)
+            df_following['Source'] = 'loc5'
+            df_following = encode_safety_categories(df_following)
+            fout = os.path.join(out_dir, 'traffic_following_change.csv')
+            if os.path.exists(fout):
+                existing = pd.read_csv(fout)
+                df_following = pd.concat([existing, df_following], ignore_index=True)
+            df_following.to_csv(fout, index=False, encoding='utf-8-sig')
+            print(f"    跟驰: {len(df_following)} 行, {df_following['ID'].nunique()} 辆车")
+
     # ---------- Phase 3: 编码 + 保存 ----------
     print(f"\n[Phase 3] 编码 & 保存...")
 
@@ -544,7 +573,7 @@ def main():
 
         for fbase, csv_path in csv_paths:
             print(f"\n  --- {fbase} ---")
-            df_left, df_right, df_traj, df_smooth_full = process_single_file(csv_path)
+            df_left, df_right, df_traj, df_smooth_full = process_single_file(csv_path, out_dir)
             if df_left is not None and len(df_left) > 0:
                 n_left = df_left['ID'].nunique()
                 all_left.append(df_left)
