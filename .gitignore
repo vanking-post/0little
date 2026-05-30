@@ -1,0 +1,28 @@
+# === 数据文件 ===
+*.pkl
+*.pickle
+trajectory_full*.csv
+traffic_left_change.csv
+traffic_right_change.csv
+traffic_*_change.csv
+
+# === 原始数据目录 ===
+read/
+
+# === 缓存 / 临时文件 ===
+__pycache__/
+*.pyc
+cache/
+rubbish/
+%22E%3A/
+
+# === IDE ===
+.idea/
+*.swp
+*.swo
+
+# === 前端依赖 ===
+node_modules/
+
+# === 一次性工具脚本 ===
+collect_env_info.py
