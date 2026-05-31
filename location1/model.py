@@ -122,6 +122,10 @@ def main_pipeline():
         df_sample_11, df_sample_12, df_smooth_11, df_smooth_12)
     df_follow_2 = extract_following_samples(
         df_sample_21, df_sample_22, df_smooth_21, df_smooth_22)
+    if not df_follow_1.empty:
+        df_follow_1['Source'] = '1-1'
+    if not df_follow_2.empty:
+        df_follow_2['Source'] = '1-2'
     parts_f = [d for d in [df_follow_1, df_follow_2] if not d.empty]
     df_following = pd.concat(parts_f, ignore_index=True) if parts_f else pd.DataFrame()
 
