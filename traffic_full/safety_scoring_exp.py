@@ -117,10 +117,24 @@ def following_risk_score(grp, v0_kmh=100):
     return score * k_speed
 
 
-def risk_label(score):
-    """将风险分转为中文标签（阈值待定，暂用占位）"""
-    if score >= 0.5:
+def risk_label(score, scenario='lane_change'):
+    """将风险分转为中文标签
+
+    参数:
+        score: 连续风险分
+        scenario: 'lane_change' 或 'following'，不同场景阈值不同
+
+    阈值依据各场景 P50(中风险下限) / P85(高风险下限) 设定:
+      - 变道车辆: P50=0.40, P85=0.61
+      - 跟驰车辆: P50=0.16, P85=0.30
+    """
+    if scenario == 'lane_change':
+        thresh_mid, thresh_high = 0.40, 0.60
+    else:
+        thresh_mid, thresh_high = 0.16, 0.30
+
+    if score >= thresh_high:
         return '高风险', '#e74c3c'
-    elif score >= 0.2:
+    elif score >= thresh_mid:
         return '中风险', '#f39c12'
     return '低风险', '#27ae60'
