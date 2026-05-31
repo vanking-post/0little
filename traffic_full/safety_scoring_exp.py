@@ -14,7 +14,7 @@ import numpy as np
 
 B = 1.3  # 速度修正参数
 
-# ---------- 指标配置 ----------
+# ---------- 指标配置（变道车辆） ----------
 METRICS = [
     {'name': 'mTTC',         'col': 'mTTC',         'w': 0.25, 'k': 12.0,
      'valid': lambda v: (v > 0)},
@@ -26,6 +26,17 @@ METRICS = [
      'valid': lambda v: (v > 0)},
     {'name': 'OL_PET',       'col': 'OL_PET',        'w': 0.15, 'k': 12.0,
      'valid': lambda v: ~np.isinf(v) & ~np.isnan(v) & (v > 0)},
+]
+
+# ---------- 指标配置（跟驰车辆） ----------
+# 仅前车(mTTC/THW) + 后车(B_mTTC)，权重归一化到和为 1
+FOLLOWING_METRICS = [
+    {'name': 'mTTC',    'col': 'mTTC',    'w': 0.4, 'k': 12.0,
+     'valid': lambda v: (v > 0)},
+    {'name': 'THW',     'col': 'Time_Headway', 'w': 0.3, 'k': 6.0,
+     'valid': lambda v: (v > 0)},
+    {'name': 'B_mTTC',  'col': 'B_mTTC',  'w': 0.3, 'k': 12.0,
+     'valid': lambda v: (v > 0)},
 ]
 
 
@@ -62,6 +73,39 @@ def risk_score(grp, v0_kmh=100):
         score += m['w'] * contrib
 
     # 速度修正系数 K
+    v85 = np.nanpercentile(
+        grp['Velocity'].replace([np.inf, -np.inf], np.nan), 85)
+    if np.isnan(v85):
+        k_speed = 1.0
+    else:
+        v0 = v0_kmh / 3.6
+        k_speed = 1.0 if v85 <= v0 else (v85 / v0) ** B
+
+    return score * k_speed
+
+
+def following_risk_score(grp, v0_kmh=100):
+    """计算跟驰车辆的连续风险分（与变道车辆同尺度，可直接对比）
+
+    仅用前车(mTTC/THW) + 后车(B_mTTC)三项，
+    权重已归一化到和为 1，乘速度修正后与 risk_score 对齐。
+    """
+    score = 0.0
+
+    for m in FOLLOWING_METRICS:
+        if m['col'] not in grp.columns:
+            continue
+
+        vals = grp[m['col']].values.astype(float)
+        valid = m['valid'](vals)
+
+        if not valid.any():
+            continue
+
+        contrib = np.nanmax(_frame_contrib(vals[valid], m['k']))
+        score += m['w'] * contrib
+
+    # 速度修正系数 K（同 risk_score）
     v85 = np.nanpercentile(
         grp['Velocity'].replace([np.inf, -np.inf], np.nan), 85)
     if np.isnan(v85):
