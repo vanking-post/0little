@@ -162,8 +162,8 @@ else:
 
 # ===== 跟驰车辆 Velocity 分布图 =====
 print('\n===== 跟驰车辆 Velocity 分布图 =====')
-fig, axes = plt.subplots(1, 5, figsize=(25, 4.5))
-fig.suptitle('跟驰车辆速度分布', fontsize=16, fontweight='bold', y=1.02)
+fig, axes = plt.subplots(5, 1, figsize=(10, 22))
+fig.suptitle('跟驰车辆速度分布', fontsize=16, fontweight='bold', y=1.01)
 
 for idx, loc_name in enumerate(LOC_DIRS):
     ax = axes[idx]
