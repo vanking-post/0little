@@ -3,7 +3,7 @@ import numpy as np
 import gc
 
 def compute_features_with_mttc(df_1_smooth, df_2_smooth, label_1='1', label_2='2',
-                               reaction_time=2.5):
+                               reaction_time=2.0):
     """
     对两个方向的平滑数据进行特征重构，包括：
     1. 将周边 7 个方向的 ID 转化为欧几里得距离，该距离考虑到了车辆自身的长宽度，为保险杠到保险杠的距离，并非质心距离。

@@ -6,7 +6,7 @@ from collections import defaultdict
 
 def extract_lane_change_samples(df1, df2, full1=None, full2=None,
                                 offset=5, conflict_tolerance=1.5,
-                                reaction_time=2.5):
+                                reaction_time=2.0):
     """
     从方向1和方向2的轨迹数据中提取左变道和右变道样本，并计算 PET。
 

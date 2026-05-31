@@ -7,7 +7,7 @@
 
 import numpy as np
 threshold_mid = 1.5
-threshold_high = 3.0
+threshold_high = 3.5
 B = 1.3 # 速度修正参数
 
 def worst_cat(series):
