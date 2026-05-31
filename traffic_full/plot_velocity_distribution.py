@@ -113,6 +113,14 @@ else:
 
             df = pd.read_csv(fp)
 
+            # 检查列是否存在
+            if col not in df.columns:
+                ax.text(0.5, 0.5, f'Column "{col}" not found', ha='center', va='center',
+                        transform=ax.transAxes, fontsize=12, color='gray')
+                ax.set_title(f'{title_prefix}  (n=0)', fontsize=12, fontweight='bold')
+                print(f'    [WARN] {title_prefix}: 缺少列 "{col}"，可用列: {list(df.columns)[:10]}...')
+                continue
+
             # PET / OL_PET 是每车单值（在 50 帧中重复），去重
             if col in ('PET', 'OL_PET'):
                 per_vehicle = df.groupby(['ID', 'Source'])[col].first()
@@ -195,7 +203,7 @@ for idx, loc_name in enumerate(LOC_DIRS):
         labels.append(f'分量{i+1} w={w:.2f} μ={mu:.1f} σ={sigma:.1f}')
         pdf_total += comp_pdf
     ax.plot(x, pdf_total, 'r-', linewidth=2, alpha=0.8, label='混合分布')
-    ax.legend([f'混合分布'] + labels, fontsize=7)
+    ax.legend(labels + ['混合分布'], fontsize=7)
 
     v85 = np.percentile(v, 85)
     ax.axvline(v85, color='#e74c3c', linewidth=1.5, linestyle='--', alpha=0.7)
@@ -214,3 +222,81 @@ out = os.path.join(OUT_DIR, 'velocity_following_distribution.png')
 plt.savefig(out, dpi=120, bbox_inches='tight')
 plt.close()
 print(f'[OK] {out}')
+
+# ===== 跟驰车辆 mTTC / B_mTTC 分布图 =====
+print('\n===== 跟驰车辆 mTTC / B_mTTC 分布图 =====')
+METRICS_FOLLOW = {
+    'mTTC':   {'column': 'mTTC',   'label': 'mTTC (s)',  'unit': 's',  'xlim': (0, 50)},
+    'B_mTTC': {'column': 'B_mTTC', 'label': 'B_mTTC (s)', 'unit': 's', 'xlim': (0, 50)},
+}
+
+for metric_name, cfg in METRICS_FOLLOW.items():
+    col = cfg['column']
+    fig, axes = plt.subplots(5, 1, figsize=(10, 22))
+    fig.suptitle(f'跟驰车辆 {cfg["label"]} 分布', fontsize=16, fontweight='bold', y=1.01)
+
+    for idx, loc_name in enumerate(LOC_DIRS):
+        ax = axes[idx]
+        fp = os.path.normpath(os.path.join(DATA_DIR, '..', loc_name, 'traffic_following_change.csv'))
+        if not os.path.exists(fp):
+            ax.text(0.5, 0.5, 'No data', ha='center', va='center', transform=ax.transAxes, fontsize=12, color='gray')
+            ax.set_title(loc_name, fontsize=12, fontweight='bold')
+            continue
+
+        df = pd.read_csv(fp, low_memory=False)
+        vals = df[col].replace([np.inf, -np.inf], np.nan).dropna().values
+        vals = vals[vals > 0]
+
+        if len(vals) == 0:
+            ax.text(0.5, 0.5, 'No valid data', ha='center', va='center',
+                    transform=ax.transAxes, fontsize=12, color='gray')
+            ax.set_title(f'{loc_name}  (n=0)', fontsize=12, fontweight='bold')
+            continue
+
+        ax.hist(vals, bins=60, density=True, alpha=0.6,
+                color='#3498db', edgecolor='white', linewidth=0.3)
+
+        # 双正态混合拟合（GMM）
+        x_fit = np.linspace(0, 50, 200)
+        gmm = GaussianMixture(n_components=2, random_state=42).fit(vals.reshape(-1, 1))
+        comp_idx = np.argsort(gmm.means_.flatten())
+        colors = ['#e74c3c', '#3498db']
+        labels = []
+        pdf_total = np.zeros_like(x_fit)
+        for i, ci in enumerate(comp_idx):
+            w = gmm.weights_[ci]
+            mu = gmm.means_[ci, 0]
+            sigma = np.sqrt(gmm.covariances_[ci, 0, 0])
+            comp_pdf = w * stats.norm.pdf(x_fit, mu, sigma)
+            ax.plot(x_fit, comp_pdf, '--', color=colors[i], linewidth=1.5, alpha=0.7)
+            labels.append(f'分量{i+1} w={w:.2f} μ={mu:.2f} σ={sigma:.2f}')
+            pdf_total += comp_pdf
+        ax.plot(x_fit, pdf_total, 'r-', linewidth=2, alpha=0.8, label='混合分布')
+        ax.legend(labels + ['混合分布'], fontsize=7)
+
+        # 15% / 50% / 85% 分位线
+        p15 = np.percentile(vals, 15)
+        p50 = np.percentile(vals, 50)
+        p85 = np.percentile(vals, 85)
+        y_top = ax.get_ylim()[1]
+
+        for p_val, pct, color in [(p15, 15, '#e74c3c'), (p50, 50, '#2ecc71'), (p85, 85, '#e67e22')]:
+            ax.axvline(p_val, color=color, linewidth=1.5, linestyle='--', alpha=0.7)
+            ax.text(p_val, y_top * (0.88 - 0.12 * (pct // 50)),
+                    f'P{pct}={p_val:.2f}{cfg["unit"]}',
+                    fontsize=8, color=color, ha='center',
+                    bbox=dict(boxstyle='round,pad=0.2', facecolor='white', alpha=0.7, edgecolor='none'))
+
+        ax.set_xlabel(cfg['label'], fontsize=10)
+        ax.set_ylabel('Density', fontsize=10)
+        ax.set_title(f'{loc_name}  (n={len(vals)})', fontsize=12, fontweight='bold')
+        if 'xlim' in cfg:
+            ax.set_xlim(*cfg['xlim'])
+            ax.set_xticks(np.arange(0, cfg['xlim'][1] + 1, 5))
+        ax.grid(axis='y', alpha=0.3)
+
+    plt.tight_layout()
+    out = os.path.join(OUT_DIR, f'{metric_name}_following_distribution.png')
+    plt.savefig(out, dpi=120, bbox_inches='tight')
+    plt.close()
+    print(f'[OK] {out}')
