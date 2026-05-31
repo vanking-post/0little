@@ -8,6 +8,7 @@ import pandas as pd
 import numpy as np
 import os
 from scipy import stats
+from sklearn.mixture import GaussianMixture
 
 DATA_DIR = 'E:/0little/traffic_full'
 OUT_DIR = os.path.join(DATA_DIR, 'analysis')
@@ -178,10 +179,23 @@ for idx, loc_name in enumerate(LOC_DIRS):
 
     ax.hist(v, bins=60, density=True, alpha=0.6, color='#2ecc71', edgecolor='white', linewidth=0.3)
 
-    mu, sigma = stats.norm.fit(v)
+    # 双正态混合拟合（GMM）
     x = np.linspace(v.min(), v.max(), 200)
-    pdf = stats.norm.pdf(x, mu, sigma)
-    ax.plot(x, pdf, 'r-', linewidth=2, alpha=0.8, label=f'正态 μ={mu:.1f} σ={sigma:.1f}')
+    gmm = GaussianMixture(n_components=2, random_state=42).fit(v.reshape(-1, 1))
+    comp_idx = np.argsort(gmm.means_.flatten())  # 按均值排序
+    colors = ['#e74c3c', '#3498db']
+    labels = []
+    pdf_total = np.zeros_like(x)
+    for i, ci in enumerate(comp_idx):
+        w = gmm.weights_[ci]
+        mu = gmm.means_[ci, 0]
+        sigma = np.sqrt(gmm.covariances_[ci, 0, 0])
+        comp_pdf = w * stats.norm.pdf(x, mu, sigma)
+        ax.plot(x, comp_pdf, '--', color=colors[i], linewidth=1.5, alpha=0.7)
+        labels.append(f'分量{i+1} w={w:.2f} μ={mu:.1f} σ={sigma:.1f}')
+        pdf_total += comp_pdf
+    ax.plot(x, pdf_total, 'r-', linewidth=2, alpha=0.8, label='混合分布')
+    ax.legend([f'混合分布'] + labels, fontsize=7)
 
     v85 = np.percentile(v, 85)
     ax.axvline(v85, color='#e74c3c', linewidth=1.5, linestyle='--', alpha=0.7)
@@ -193,7 +207,6 @@ for idx, loc_name in enumerate(LOC_DIRS):
     ax.set_xlabel('Velocity (km/h)', fontsize=9)
     ax.set_ylabel('Density', fontsize=9)
     ax.set_title(f'{loc_name}  (n={len(v)})', fontsize=11, fontweight='bold')
-    ax.legend(fontsize=7)
     ax.grid(axis='y', alpha=0.3)
 
 plt.tight_layout()
