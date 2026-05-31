@@ -246,6 +246,7 @@ def extract_lane_change_samples(df_east, df_west, full_east=None, full_west=None
             if f_valid.any():
                 f_mttc[f_valid] = (-f_dv[f_valid] + np.sqrt(f_disc[f_valid])) / f_da[f_valid]
             result['F_mTTC'] = np.round(f_mttc, 2)
+            result['F_mTTC'] = result['F_mTTC'].replace([np.inf, -np.inf], 0)
 
             # 后车
             behind = nbr_xyv.rename(columns={'ID': 'BID', 'X': 'BX', 'Y': 'BY',
@@ -280,6 +281,7 @@ def extract_lane_change_samples(df_east, df_west, full_east=None, full_west=None
             if b_valid.any():
                 b_mttc[b_valid] = (-b_dv[b_valid] + np.sqrt(b_disc[b_valid])) / b_da[b_valid]
             result['B_mTTC'] = np.round(b_mttc, 2)
+            result['B_mTTC'] = result['B_mTTC'].replace([np.inf, -np.inf], 0)
 
             result.drop(columns=['FID', 'FX', 'FY', 'FLon', 'FLat', 'FAcc',
                                   'BID', 'BX', 'BY', 'BLon', 'BLat', 'BAcc',
