@@ -14,6 +14,11 @@ import numpy as np
 
 B = 1.3  # 速度修正参数
 
+# ---------- 风险等级阈值 ----------
+# 中风险 ≥ thresh_mid, 高风险 ≥ thresh_high
+THRESH_LANE_CHANGE = {'mid': 0.40, 'high': 0.60}  # 变道车辆
+THRESH_FOLLOWING   = {'mid': 0.20, 'high': 0.35}  # 跟驰车辆
+
 # ---------- 指标配置（变道车辆） ----------
 METRICS = [
     {'name': 'mTTC',         'col': 'mTTC',         'w': 0.25, 'k': 12.0,
@@ -124,17 +129,12 @@ def risk_label(score, scenario='lane_change'):
         score: 连续风险分
         scenario: 'lane_change' 或 'following'，不同场景阈值不同
 
-    阈值依据各场景 P50(中风险下限) / P85(高风险下限) 设定:
-      - 变道车辆: P50=0.40, P85=0.61
-      - 跟驰车辆: P50=0.16, P85=0.30
+    阈值由题头 THRESH_LANE_CHANGE / THRESH_FOLLOWING 全局参数控制。
     """
-    if scenario == 'lane_change':
-        thresh_mid, thresh_high = 0.40, 0.60
-    else:
-        thresh_mid, thresh_high = 0.16, 0.30
+    t = THRESH_LANE_CHANGE if scenario == 'lane_change' else THRESH_FOLLOWING
 
-    if score >= thresh_high:
+    if score >= t['high']:
         return '高风险', '#e74c3c'
-    elif score >= thresh_mid:
+    elif score >= t['mid']:
         return '中风险', '#f39c12'
     return '低风险', '#27ae60'
