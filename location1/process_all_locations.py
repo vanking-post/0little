@@ -45,12 +45,12 @@ LOCATIONS = {
         'dir': os.path.join(BASE_READ, 'location2'),
         'files': ['2-1_trajectory', '2-2_trajectory', '2-3_trajectory', '2-4_trajectory'],
     },
-    'location3_part1': {
-        'dir': os.path.join(BASE_READ, 'location3_part1'),
+    'location3': {
+        'dir': os.path.join(BASE_READ, 'location3'),
         'files': ['3-1_trajectory', '3-2_trajectory', '3-3_trajectory', '3-4_trajectory'],
     },
-    'location4_part1': {
-        'dir': os.path.join(BASE_READ, 'location4_part1'),
+    'location4': {
+        'dir': os.path.join(BASE_READ, 'location4'),
         'files': ['4-1_trajectory', '4-2_trajectory', '4-3_trajectory', '4-4_trajectory', '4-5_trajectory'],
     },
 }

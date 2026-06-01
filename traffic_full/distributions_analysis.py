@@ -22,7 +22,7 @@ os.makedirs(OUT_DIR, exist_ok=True)
 
 LOCS = {
     'location1': 'E:/0little/location1', 'location2': 'E:/0little/location2',
-    'location3_part1': 'E:/0little/location3_part1', 'location4_part1': 'E:/0little/location4_part1',
+    'location3': 'E:/0little/location3', 'location4': 'E:/0little/location4',
     'location5': 'E:/0little/location5',
 }
 
@@ -406,7 +406,7 @@ def plot_risk_distribution_by_location(df):
     risk_df = pd.DataFrame(vehicle_risks)
     
     # 统计每个场景的风险等级分布
-    locations = ['location1', 'location2', 'location3_part1', 'location4_part1', 'location5']
+    locations = ['location1', 'location2', 'location3', 'location4', 'location5']
     risk_levels = ['高风险', '中风险', '低风险']
     risk_codes = [0, 1, 2]
     colors_map = {'高风险': '#e74c3c', '中风险': '#f39c12', '低风险': '#27ae60'}

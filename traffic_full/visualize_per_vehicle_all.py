@@ -35,17 +35,17 @@ LOCS = {
         'traj_path': 'E:/0little/location2/trajectory_full.csv',
         'coeffs_path': 'E:/0little/location2/lane_coeffs.csv',
     },
-    'location3_part1': {
-        'sample_dir': 'E:/0little/location3_part1',
+    'location3': {
+        'sample_dir': 'E:/0little/location3',
         'sample_prefix': 'traffic',
-        'traj_path': 'E:/0little/location3_part1/trajectory_full.csv',
-        'coeffs_path': 'E:/0little/location3_part1/lane_coeffs.csv',
+        'traj_path': 'E:/0little/location3/trajectory_full.csv',
+        'coeffs_path': 'E:/0little/location3/lane_coeffs.csv',
     },
-    'location4_part1': {
-        'sample_dir': 'E:/0little/location4_part1',
+    'location4': {
+        'sample_dir': 'E:/0little/location4',
         'sample_prefix': 'traffic',
-        'traj_path': 'E:/0little/location4_part1/trajectory_full.csv',
-        'coeffs_path': 'E:/0little/location4_part1/lane_coeffs.csv',
+        'traj_path': 'E:/0little/location4/trajectory_full.csv',
+        'coeffs_path': 'E:/0little/location4/lane_coeffs.csv',
     },
     'location5': {
         'sample_dir': 'E:/0little/location5',

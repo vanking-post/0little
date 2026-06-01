@@ -18,7 +18,7 @@ os.makedirs(OUT_DIR, exist_ok=True)
 plt.rcParams['font.sans-serif'] = ['SimHei', 'Microsoft YaHei', 'DejaVu Sans']
 plt.rcParams['axes.unicode_minus'] = False
 
-LOC_DIRS = ['location1', 'location2', 'location3_part1', 'location4_part1', 'location5']
+LOC_DIRS = ['location1', 'location2', 'location3', 'location4', 'location5']
 
 # 构建 location 变道样本文件列表
 loc_files = []  # (path, location_name)

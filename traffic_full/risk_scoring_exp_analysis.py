@@ -13,7 +13,7 @@ from safety_scoring_exp import risk_score, following_risk_score
 # ==================== 全局参数 ====================
 DATA_DIR = 'E:/0little/traffic_full'
 OUT_DIR = os.path.join(DATA_DIR, 'analysis')
-LOC_DIRS = ['location1', 'location2', 'location3_part1', 'location4_part1', 'location5']
+LOC_DIRS = ['location1', 'location2', 'location3', 'location4', 'location5']
 LOC_V0 = {'location5': 80}  # location5 基准速度 80km/h，其余默认 100
 
 # 场景标签与颜色

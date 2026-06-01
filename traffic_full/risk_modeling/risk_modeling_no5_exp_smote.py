@@ -11,9 +11,9 @@ from risk_modeling_utils_exp import *
 
 LOCS = {
     'location1': 'E:/0little/location1', 'location2': 'E:/0little/location2',
-    'location3_part1': 'E:/0little/location3_part1', 'location4_part1': 'E:/0little/location4_part1',
+    'location3': 'E:/0little/location3', 'location4': 'E:/0little/location4',
 }
-LOC_KEYS = ['location1', 'location2', 'location3_part1', 'location4_part1']
+LOC_KEYS = ['location1', 'location2', 'location3', 'location4']
 LOC_LABELS = ['Loc1', 'Loc2', 'Loc3', 'Loc4']
 MODELS = dict(STANDARD_MODELS)  # 不含 LSTM
 

@@ -26,7 +26,7 @@
       "Bash(start *)",
       "Bash(PYTHONIOENCODING=utf-8 python safety_dashboard.py)",
       "Bash(PYTHONIOENCODING=utf-8 python process_all_locations.py)",
-      "Bash(ls -lh e:/0little/location2/traffic_*.csv e:/0little/location3_part1/traffic_*.csv e:/0little/location4_part1/traffic_*.csv)",
+      "Bash(ls -lh e:/0little/location2/traffic_*.csv e:/0little/location3/traffic_*.csv e:/0little/location4/traffic_*.csv)",
       "Bash(PYTHONIOENCODING=utf-8 python count_vehicles.py)",
       "Bash(PYTHONIOENCODING=utf-8 python *)",
       "Bash(mv -f \"E:/0little/traffic_full/location5_left_tmp.csv\" \"E:/0little/traffic_full/location5_left.csv\")",
@@ -99,7 +99,11 @@
       "Bash(ssh-keygen *)",
       "Bash(ssh *)",
       "Read(//c//**)",
-      "Bash(/d/ancaonda/install/Scripts/conda.exe env *)"
+      "Bash(/d/ancaonda/install/Scripts/conda.exe env *)",
+      "Bash(PYTHONIOENCODING=utf-8 /c/Users/20425/AppData/Local/Programs/Python/Python312/python.exe model.py)",
+      "Bash(PYTHONIOENCODING=utf-8 /c/Users/20425/AppData/Local/Programs/Python/Python312/python.exe plot_velocity_distribution.py)",
+      "Bash(PYTHONIOENCODING=utf-8 /c/Users/20425/AppData/Local/Programs/Python/Python312/python.exe -c ' *)",
+      "Bash(PYTHONIOENCODING=utf-8 /c/Users/20425/AppData/Local/Programs/Python/Python312/python.exe risk_scoring_exp_analysis.py)"
     ]
   },
   "enableAllProjectMcpServers": true,

@@ -20,7 +20,7 @@ os.makedirs(OUT_DIR, exist_ok=True)
 
 LOCS = {
     'location1': 'E:/0little/location1', 'location2': 'E:/0little/location2',
-    'location3_part1': 'E:/0little/location3_part1', 'location4_part1': 'E:/0little/location4_part1',
+    'location3': 'E:/0little/location3', 'location4': 'E:/0little/location4',
     'location5': 'E:/0little/location5',
 }
 
