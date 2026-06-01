@@ -34,7 +34,7 @@ LOC5_REACTION_TIME = REACTION_TIME     # 用于 location5 的 step06（F_ERSD、
 
 # 样本截取窗口参数
 PRE_FRAMES = 100             # 变道/跟驰样本：变化点前推的帧数
-SAMPLE_FRAMES = 50           # 截取的样本帧数（50 帧 = 1 秒）
+SAMPLE_FRAMES = 75           # 截取的样本帧数（25 帧 = 1 秒）
 
 LOCATIONS = {
     'location1': {
@@ -530,7 +530,7 @@ def process_location5():
         print(f"  精简轨迹已保存: {len(pd.concat(traj_parts))} 行 → {tp}")
 
     # location5 无车道线数据，跳过可视化
-    print(f"\n  location5 完成（无可视化: 无车道线系数）")
+    # print(f"\n  location5 完成（无可视化: 无车道线系数）")
 
 
 # ==================== 主流程 ====================

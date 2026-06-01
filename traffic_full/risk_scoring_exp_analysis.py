@@ -8,7 +8,7 @@ import pandas as pd
 import numpy as np
 import os, sys
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from safety_scoring_exp import risk_score, following_risk_score, risk_label
+from safety_scoring_exp import risk_score, following_risk_score
 
 # ==================== 全局参数 ====================
 DATA_DIR = 'E:/0little/traffic_full'
@@ -23,7 +23,7 @@ LABELS = {'lane_change': '变道车辆', 'following': '跟驰车辆'}
 # 风险等级阈值
 THRESHOLDS = {
     'lane_change': {'mid': 0.40, 'high': 0.60},
-    'following':   {'mid': 0.25, 'high': 0.50},
+    'following':   {'mid': 0.25, 'high': 0.45},
 }
 
 # 图表尺寸与标题
@@ -154,12 +154,10 @@ x_pos = np.arange(2)
 width = 0.35
 
 for i, (key, scores) in enumerate([('lane_change', df_lc['score']), ('following', df_fl['score'])]):
-    low = mid = high = 0
-    for s in scores:
-        lbl, _ = risk_label(s, key)
-        if lbl == '低风险': low += 1
-        elif lbl == '中风险': mid += 1
-        else: high += 1
+    t = THRESHOLDS[key]
+    low = ((scores < t['mid']) | (scores == 0)).sum()
+    mid = ((scores >= t['mid']) & (scores < t['high'])).sum()
+    high = (scores >= t['high']).sum()
     total = low + mid + high
     ax.bar(x_pos[i], low / total * 100, width, label='低风险' if i == 0 else None,
            color='#27ae60', alpha=0.8)

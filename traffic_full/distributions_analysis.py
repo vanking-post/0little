@@ -52,9 +52,11 @@ def load_all():
 
 def print_stats(df):
     """打印各指标统计摘要"""
+    # 检测每车帧数
+    sample_frames = int(df.groupby(['ID', 'Source']).size().mode().iloc[0])
     print('=' * 70)
     print(f'  样本总数: {df.groupby(["ID","Source"]).ngroups} 辆, '
-          f'{len(df)} 行 (每车 50 帧)')
+          f'{len(df)} 行 (每车 {sample_frames} 帧)')
     print('=' * 70)
     for col in ['TTC', 'mTTC', 'PET', 'OL_PET', 'Time_Headway', 'ETTC', 'F_ETTC', 'B_ETTC', 'RSD', 'F_ERSD', 'B_ERSD']:
         if col not in df.columns:
@@ -154,7 +156,9 @@ def plot_distributions(df):
     ax.axvline(x=5, color='gray', linewidth=1, linestyle='--', alpha=0.5)
     ax.legend(fontsize=9)
 
-    fig.suptitle('安全指标分布对比 (1,494 辆 × 50 帧)', fontsize=16, fontweight='bold')
+    sample_frames = int(df.groupby(['ID', 'Source']).size().mode().iloc[0])
+    n_veh = df.groupby(['ID', 'Source']).ngroups
+    fig.suptitle(f'安全指标分布对比 ({n_veh} 辆 × {sample_frames} 帧)', fontsize=16, fontweight='bold')
     fig.tight_layout()
     fig.savefig(os.path.join(OUT_DIR, 'dist_histograms.png'), dpi=120, bbox_inches='tight')
     plt.close(fig)

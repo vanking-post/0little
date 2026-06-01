@@ -10,7 +10,8 @@ import pandas as pd
 import numpy as np
 import os
 
-from safety_scoring import worst_cat, overall_risk, risk_label
+from safety_scoring import worst_cat
+from safety_scoring_exp import risk_score as exp_risk_score, risk_label as exp_risk_label
 
 plt.rcParams['font.sans-serif'] = ['SimHei', 'Microsoft YaHei', 'DejaVu Sans']
 plt.rcParams['axes.unicode_minus'] = False
@@ -310,7 +311,7 @@ def panel_velocity_components(ax, veh_sample):
     ax.set_title('纵/横向速度', fontsize=13, fontweight='bold')
 
 
-# worst_cat(), overall_risk(), risk_label() — 从 safety_scoring 模块导入
+# worst_cat — safety_scoring 模块; risk_score/risk_label — safety_scoring_exp 模块
 
 
 def panel_risk_summary(ax, veh_sample, loc_name=''):
@@ -325,8 +326,8 @@ def panel_risk_summary(ax, veh_sample, loc_name=''):
     row0 = veh_sample.iloc[0]
     has_front = bool(row0.get('has_front_vehicle', False))
     has_rear = bool(row0.get('has_rear_vehicle', False))
-    risk_code = overall_risk(veh_sample, v0_kmh=80 if loc_name=='location5' else 100)
-    overall, overall_color = risk_label(risk_code)
+    score = exp_risk_score(veh_sample, v0_kmh=80 if loc_name=='location5' else 100)
+    overall, overall_color = exp_risk_label(score, 'lane_change')
 
     col_labels = ['指标', '分类', '含义']
     cell_text = []
@@ -378,7 +379,7 @@ def plot_one_vehicle(fig, axes, vid, veh_sample, veh_traj, curves, x_range,
 
 # ==================== 主流程 ====================
 def main():
-    from safety_scoring import overall_risk, risk_label
+    from safety_scoring_exp import risk_score, risk_label
 
     rng = np.random.default_rng(SEED)
     total_figs = 0
@@ -392,8 +393,8 @@ def main():
             sample_df = load_sample(loc_name, side)
             for (vid, src), grp in sample_df.groupby(['ID', 'Source']):
                 grp = grp.sort_values('Frame')
-                risk = overall_risk(grp, v0_kmh=80 if loc_name == 'location5' else 100)
-                tag, _ = risk_label(risk)
+                risk = risk_score(grp, v0_kmh=80 if loc_name == 'location5' else 100)
+                tag, _ = risk_label(risk, 'lane_change')
                 label_counts[tag] += 1
                 label_per_loc[loc_name][tag] += 1
 

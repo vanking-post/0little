@@ -318,40 +318,40 @@ def extract_lane_change_samples(df_east, df_west, full_east=None, full_west=None
             if cols_to_drop:
                 df_out.drop(columns=cols_to_drop, inplace=True)
 
-    # 总体统计
-    print(f"\n{'='*20} step06 东西变道样本统计 {'='*20}")
-    print(f"总左变道车辆数: {len(df_left)//sample_frames if not df_left.empty else 0}")
-    print(f"总右变道车辆数: {len(df_right)//sample_frames if not df_right.empty else 0}")
-    if not df_left.empty and 'PET' in df_left.columns:
-        finite = df_left['PET'][df_left['PET'] != np.inf]
-        print(f"左变道 PET 统计: 有效样本 {len(finite)} 个, 均值={finite.mean():.2f}, 中位数={finite.median():.2f}")
-    if not df_right.empty and 'PET' in df_right.columns:
-        finite = df_right['PET'][df_right['PET'] != np.inf]
-        print(f"右变道 PET 统计: 有效样本 {len(finite)} 个, 均值={finite.mean():.2f}, 中位数={finite.median():.2f}")
-    #对PET进行分析
-    left_valid = df_left[df_left['PET'] != np.inf]
-    right_valid = df_right[df_right['PET'] != np.inf]
-    print(f"左变道 PET < 2秒比例: {(left_valid['PET'] < 2).mean():.1%}")
-    print(f"右变道 PET < 2秒比例: {(right_valid['PET'] < 2).mean():.1%}")
-    print(f"左变道 PET 最大值: {left_valid['PET'].max():.1f}")
-    print(f"右变道 PET 最大值: {right_valid['PET'].max():.1f}")
-    # 按车辆聚合，计算 PET 有效比例
-    left_vehicle_pet = df_left.groupby('ID')['PET'].first()
-    left_valid_vehicles = (left_vehicle_pet != np.inf).sum()
-    print(f"左变道有效 PET 车辆数: {left_valid_vehicles} / {left_vehicle_pet.count()}")
-    right_vehicle_pet = df_right.groupby('ID')['PET'].first()
-    right_valid_vehicles = (right_vehicle_pet != np.inf).sum()
-    print(f"右变道有效 PET 车辆数: {right_valid_vehicles} / {right_vehicle_pet.count()}")
-    # OL-PET 统计
-    for side_label, df_side in [('左变道', df_left), ('右变道', df_right)]:
-        if not df_side.empty and 'OL_PET' in df_side.columns:
-            olp = df_side['OL_PET']
-            olp_finite = olp[~np.isinf(olp) & ~pd.isna(olp)]
-            left_olp = df_side.groupby('ID')['OL_PET'].first()
-            olp_valid_veh = (~np.isinf(left_olp) & ~pd.isna(left_olp)).sum()
-            print(f"{side_label} OL-PET 统计: 有效 {len(olp_finite)} 条, "
-                  f"均值={olp_finite.mean():.2f}s, <2s={(olp_finite<2).mean():.1%}, "
-                  f"有效车辆 {olp_valid_veh}/{df_side['ID'].nunique()}")
+    # # 总体统计
+    # print(f"\n{'='*20} step06 东西变道样本统计 {'='*20}")
+    # print(f"总左变道车辆数: {len(df_left)//sample_frames if not df_left.empty else 0}")
+    # print(f"总右变道车辆数: {len(df_right)//sample_frames if not df_right.empty else 0}")
+    # if not df_left.empty and 'PET' in df_left.columns:
+    #     finite = df_left['PET'][df_left['PET'] != np.inf]
+    #     print(f"左变道 PET 统计: 有效样本 {len(finite)} 个, 均值={finite.mean():.2f}, 中位数={finite.median():.2f}")
+    # if not df_right.empty and 'PET' in df_right.columns:
+    #     finite = df_right['PET'][df_right['PET'] != np.inf]
+    #     print(f"右变道 PET 统计: 有效样本 {len(finite)} 个, 均值={finite.mean():.2f}, 中位数={finite.median():.2f}")
+    # #对PET进行分析
+    # left_valid = df_left[df_left['PET'] != np.inf]
+    # right_valid = df_right[df_right['PET'] != np.inf]
+    # print(f"左变道 PET < 2秒比例: {(left_valid['PET'] < 2).mean():.1%}")
+    # print(f"右变道 PET < 2秒比例: {(right_valid['PET'] < 2).mean():.1%}")
+    # print(f"左变道 PET 最大值: {left_valid['PET'].max():.1f}")
+    # print(f"右变道 PET 最大值: {right_valid['PET'].max():.1f}")
+    # # 按车辆聚合，计算 PET 有效比例
+    # left_vehicle_pet = df_left.groupby('ID')['PET'].first()
+    # left_valid_vehicles = (left_vehicle_pet != np.inf).sum()
+    # print(f"左变道有效 PET 车辆数: {left_valid_vehicles} / {left_vehicle_pet.count()}")
+    # right_vehicle_pet = df_right.groupby('ID')['PET'].first()
+    # right_valid_vehicles = (right_vehicle_pet != np.inf).sum()
+    # print(f"右变道有效 PET 车辆数: {right_valid_vehicles} / {right_vehicle_pet.count()}")
+    # # OL-PET 统计
+    # for side_label, df_side in [('左变道', df_left), ('右变道', df_right)]:
+    #     if not df_side.empty and 'OL_PET' in df_side.columns:
+    #         olp = df_side['OL_PET']
+    #         olp_finite = olp[~np.isinf(olp) & ~pd.isna(olp)]
+    #         left_olp = df_side.groupby('ID')['OL_PET'].first()
+    #         olp_valid_veh = (~np.isinf(left_olp) & ~pd.isna(left_olp)).sum()
+    #         print(f"{side_label} OL-PET 统计: 有效 {len(olp_finite)} 条, "
+    #               f"均值={olp_finite.mean():.2f}s, <2s={(olp_finite<2).mean():.1%}, "
+    #               f"有效车辆 {olp_valid_veh}/{df_side['ID'].nunique()}")
     # 如果有效车辆比例明显低于总车辆数（234），说明很多车辆的后车 ID 未找到
     # fig, axes = plt.subplots(1, 2, figsize=(12, 4))
     # axes[0].hist(left_valid['PET'], bins=30, alpha=0.7, label='左变道')
