@@ -6,7 +6,8 @@ from collections import defaultdict
 
 def extract_lane_change_samples(df1, df2, full1=None, full2=None,
                                 offset=5, conflict_tolerance=1.5,
-                                reaction_time=2.0):
+                                reaction_time=2.0,
+                                pre_frames=100, sample_frames=50):
     """
     从方向1和方向2的轨迹数据中提取左变道和右变道样本，并计算 PET。
 
@@ -120,9 +121,9 @@ def extract_lane_change_samples(df1, df2, full1=None, full2=None,
             else:  # cur_lane < prev_lane
                 behavior = '右变道' if is_left_up else '左变道'
 
-            # 提取样本：变道前 100 到 50 帧
-            if first_idx >= 100:
-                sample = group.iloc[first_idx - 100:first_idx - 50].copy()
+            # 提取样本：变道前 pre_frames 到 pre_frames-sample_frames 帧
+            if first_idx >= pre_frames:
+                sample = group.iloc[first_idx - pre_frames:first_idx - (pre_frames - sample_frames)].copy()
                 sample['Label'] = behavior
 
                 # 计算 PET 和 OL-PET（原始车道后车 PET）
@@ -272,8 +273,8 @@ def extract_lane_change_samples(df1, df2, full1=None, full2=None,
 
     # 打印统计信息
     print(f"\n{'='*20} 总体变道样本统计 {'='*20}")
-    print(f"总左变道车辆数: {len(df_left)//50 if not df_left.empty else 0}")
-    print(f"总右变道车辆数: {len(df_right)//50 if not df_right.empty else 0}")
+    print(f"总左变道车辆数: {len(df_left)//sample_frames if not df_left.empty else 0}")
+    print(f"总右变道车辆数: {len(df_right)//sample_frames if not df_right.empty else 0}")
 
     # if not df_left.empty and 'PET' in df_left.columns:
     #     finite = df_left['PET'][df_left['PET'] != np.inf]
@@ -294,7 +295,8 @@ def extract_lane_change_samples(df1, df2, full1=None, full2=None,
     return df_left, df_right
 
 
-def extract_following_samples(df1, df2, full1=None, full2=None, random_state=42):
+def extract_following_samples(df1, df2, full1=None, full2=None, random_state=42,
+                              pre_frames=100, sample_frames=50):
     """
     从非变道车辆中提取跟驰样本（每车随机截取 50 帧），并计算后车追尾冲突 B_mTTC。
 
@@ -329,10 +331,10 @@ def extract_following_samples(df1, df2, full1=None, full2=None, random_state=42)
         samples = []
         for vid in follow_ids:
             grp = df[df['ID'] == vid].sort_values('Time')
-            if len(grp) <= 100:
+            if len(grp) <= pre_frames:
                 continue
-            cut_idx = rng.integers(100, len(grp))
-            sample = grp.iloc[cut_idx - 100:cut_idx - 50].copy()
+            cut_idx = rng.integers(pre_frames, len(grp))
+            sample = grp.iloc[cut_idx - pre_frames:cut_idx - (pre_frames - sample_frames)].copy()
             sample['Label'] = '跟驰'
 
             # B_mTTC：后车追本车（考虑加速度）
@@ -385,5 +387,5 @@ def extract_following_samples(df1, df2, full1=None, full2=None, random_state=42)
 
     result = pd.concat(parts, ignore_index=True)
     print(f"\n{'='*20} 总体跟驰样本统计 {'='*20}")
-    print(f"总跟驰车辆数: {len(result)//50 if not result.empty else 0}")
+    print(f"总跟驰车辆数: {len(result)//sample_frames if not result.empty else 0}")
     return result

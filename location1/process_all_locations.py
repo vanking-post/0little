@@ -32,6 +32,10 @@ REACTION_TIME = 2.0          # 用于 step05（同车道前车 RSD）
 LOC1_REACTION_TIME = REACTION_TIME   # 用于 location1-4 的 step06（F_ERSD、B_ERSD）
 LOC5_REACTION_TIME = REACTION_TIME     # 用于 location5 的 step06（F_ERSD、B_ERSD）
 
+# 样本截取窗口参数
+PRE_FRAMES = 100             # 变道/跟驰样本：变化点前推的帧数
+SAMPLE_FRAMES = 50           # 截取的样本帧数（50 帧 = 1 秒）
+
 LOCATIONS = {
     'location1': {
         'dir': os.path.join(BASE_READ, 'location1'),
@@ -134,7 +138,8 @@ def process_single_file(csv_path, out_dir=None):
         # Step 6: 提取变道样本 (offset=5, tolerance=1.5)
         df_left, df_right = extract_lane_change_samples(df_sample_1, df_sample_2,
                                                          df_smooth_1, df_smooth_2, 5, 1.5,
-                                                         reaction_time=LOC1_REACTION_TIME)
+                                                         reaction_time=LOC1_REACTION_TIME,
+                                                         pre_frames=PRE_FRAMES, sample_frames=SAMPLE_FRAMES)
 
         # 添加来源标识（子文件前缀，如 2-1、3-2），便于追溯场景和匹配车道线
         if df_left is not None and len(df_left) > 0:
@@ -157,7 +162,8 @@ def process_single_file(csv_path, out_dir=None):
 
         # 提取跟驰样本
         df_following = extract_following_samples(df_sample_1, df_sample_2,
-                                                  df_smooth_1, df_smooth_2)
+                                                  df_smooth_1, df_smooth_2,
+                                                  pre_frames=PRE_FRAMES, sample_frames=SAMPLE_FRAMES)
         if df_following is not None and len(df_following) > 0:
             df_following['Source'] = prefix
             df_following = encode_safety_categories(df_following)
@@ -449,7 +455,8 @@ def process_location5():
         print("\n  --- Step 6: 变道提取 (location5 模块) ---")
         df_left, df_right = step06_l5.extract_lane_change_samples(
             df_sample_e, df_sample_w, df_smooth_e, df_smooth_w,
-            reaction_time=LOC5_REACTION_TIME)
+            reaction_time=LOC5_REACTION_TIME,
+            pre_frames=PRE_FRAMES, sample_frames=SAMPLE_FRAMES)
 
         # 返回后统一列名 time → Time
         for d in [df_left, df_right]:
@@ -459,7 +466,8 @@ def process_location5():
         # ---------- 跟驰样本提取 ----------
         print("\n  --- Step 6b: 跟驰样本提取 (location5 模块) ---")
         df_following = step06_l5.extract_following_samples(
-            df_sample_e, df_sample_w, df_smooth_e, df_smooth_w)
+            df_sample_e, df_sample_w, df_smooth_e, df_smooth_w,
+            pre_frames=PRE_FRAMES, sample_frames=SAMPLE_FRAMES)
         if df_following is not None and len(df_following) > 0:
             if 'time' in df_following.columns and 'Time' not in df_following.columns:
                 df_following.rename(columns={'time': 'Time'}, inplace=True)

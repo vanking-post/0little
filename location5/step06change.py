@@ -7,7 +7,8 @@ THRESHOLD_RAMP_SUBSEQUENT = 50  # 西向匝道后二次变道最小间隔
 
 
 def extract_lane_change_samples(df_east, df_west, full_east=None, full_west=None,
-                                reaction_time=2.5):
+                                reaction_time=2.5,
+                                pre_frames=100, sample_frames=50):
     """
     从东西向轨迹数据中提取左变道和右变道样本（不包含跟驰），并计算 PET（后侵入时间）
 
@@ -100,8 +101,8 @@ def extract_lane_change_samples(df_east, df_west, full_east=None, full_west=None
                 if unique_seq[0] == ramp_lane:
                     if len(change_idx) > 1:
                         second_idx = change_idx[1]
-                        if (second_idx - change_idx[0]) >= THRESHOLD_RAMP_SUBSEQUENT and second_idx >= 100:
-                            sample = group.iloc[second_idx - 100:second_idx - 50].copy()
+                        if (second_idx - change_idx[0]) >= THRESHOLD_RAMP_SUBSEQUENT and second_idx >= pre_frames:
+                            sample = group.iloc[second_idx - pre_frames:second_idx - (pre_frames - sample_frames)].copy()
                             sample['Label'] = '左变道'
                             # 计算 PET 和 OL-PET
                             pet, ol_pet = np.inf, np.inf
@@ -132,8 +133,8 @@ def extract_lane_change_samples(df_east, df_west, full_east=None, full_west=None
                     continue
 
                 first_idx = change_idx[0]
-                if first_idx >= 100:
-                    sample = group.iloc[first_idx - 100:first_idx - 50].copy()
+                if first_idx >= pre_frames:
+                    sample = group.iloc[first_idx - pre_frames:first_idx - (pre_frames - sample_frames)].copy()
                     sample['Label'] = behavior
                     # 计算 PET 和 OL-PET
                     pet, ol_pet = np.inf, np.inf
@@ -176,8 +177,8 @@ def extract_lane_change_samples(df_east, df_west, full_east=None, full_west=None
                     continue
 
                 behavior = '左变道' if cur_lane > prev_lane else '右变道'
-                if first_idx >= 100:
-                    sample = group.iloc[first_idx - 100:first_idx - 50].copy()
+                if first_idx >= pre_frames:
+                    sample = group.iloc[first_idx - pre_frames:first_idx - (pre_frames - sample_frames)].copy()
                     sample['Label'] = behavior
                     # 计算 PET 和 OL-PET
                     pet, ol_pet = np.inf, np.inf
@@ -319,8 +320,8 @@ def extract_lane_change_samples(df_east, df_west, full_east=None, full_west=None
 
     # 总体统计
     print(f"\n{'='*20} step06 东西变道样本统计 {'='*20}")
-    print(f"总左变道车辆数: {len(df_left)//50 if not df_left.empty else 0}")
-    print(f"总右变道车辆数: {len(df_right)//50 if not df_right.empty else 0}")
+    print(f"总左变道车辆数: {len(df_left)//sample_frames if not df_left.empty else 0}")
+    print(f"总右变道车辆数: {len(df_right)//sample_frames if not df_right.empty else 0}")
     if not df_left.empty and 'PET' in df_left.columns:
         finite = df_left['PET'][df_left['PET'] != np.inf]
         print(f"左变道 PET 统计: 有效样本 {len(finite)} 个, 均值={finite.mean():.2f}, 中位数={finite.median():.2f}")
@@ -361,7 +362,8 @@ def extract_lane_change_samples(df_east, df_west, full_east=None, full_west=None
 
     return df_left, df_right
 
-def extract_following_samples(df_east, df_west, full_east=None, full_west=None, random_state=42):
+def extract_following_samples(df_east, df_west, full_east=None, full_west=None, random_state=42,
+                              pre_frames=100, sample_frames=50):
     """
     从非变道车辆中提取跟驰样本（每车随机截取 50 帧），并计算后车追尾冲突 B_mTTC。
     location5 专用版（使用 time 列名）。
@@ -395,10 +397,10 @@ def extract_following_samples(df_east, df_west, full_east=None, full_west=None, 
         samples = []
         for vid in follow_ids:
             grp = df[df['ID'] == vid].sort_values('time')
-            if len(grp) <= 100:
+            if len(grp) <= pre_frames:
                 continue
-            cut_idx = rng.integers(100, len(grp))
-            sample = grp.iloc[cut_idx - 100:cut_idx - 50].copy()
+            cut_idx = rng.integers(pre_frames, len(grp))
+            sample = grp.iloc[cut_idx - pre_frames:cut_idx - (pre_frames - sample_frames)].copy()
             sample['Label'] = '跟驰'
 
             if has_full:
@@ -449,5 +451,5 @@ def extract_following_samples(df_east, df_west, full_east=None, full_west=None, 
 
     result = pd.concat(parts, ignore_index=True)
     print(f"\n{'='*20} 总体跟驰样本统计 {'='*20}")
-    print(f"总跟驰车辆数: {len(result)//50 if not result.empty else 0}")
+    print(f"总跟驰车辆数: {len(result)//sample_frames if not result.empty else 0}")
     return result
