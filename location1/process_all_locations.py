@@ -33,7 +33,7 @@ LOC1_REACTION_TIME = REACTION_TIME   # 用于 location1-4 的 step06（F_ERSD、
 LOC5_REACTION_TIME = REACTION_TIME     # 用于 location5 的 step06（F_ERSD、B_ERSD）
 
 # 样本截取窗口参数
-PRE_FRAMES = 100             # 变道/跟驰样本：变化点前推的帧数
+PRE_FRAMES = 85             # 变道/跟驰样本：变化点前推的帧数
 SAMPLE_FRAMES = 75           # 截取的样本帧数（25 帧 = 1 秒）
 
 LOCATIONS = {

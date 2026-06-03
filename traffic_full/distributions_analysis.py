@@ -613,10 +613,10 @@ def plot_risk_heatmap(df):
 
         n_high = loc_high.groupby(['ID', 'Source']).ngroups
         n_total = loc_all.groupby(['ID', 'Source']).ngroups
-        ax.text(0.98, 0.02, f'高风险 {n_high}/{n_total} ({n_high/n_total*100:.1f}%)',
-                transform=ax.transAxes, fontsize=10, ha='right', va='bottom',
-                color='white', fontweight='bold',
-                bbox=dict(boxstyle='round', facecolor='#e74c3c', alpha=0.8))
+        # ax.text(0.98, 0.02, f'高风险 {n_high}/{n_total} ({n_high/n_total*100:.1f}%)',
+        #         transform=ax.transAxes, fontsize=10, ha='right', va='bottom',
+        #         color='white', fontweight='bold',
+        #         bbox=dict(boxstyle='round', facecolor='#e74c3c', alpha=0.8))
         ax.set_xlim(x_min - x_pad, x_max + x_pad)
         ax.set_ylim(y_max + y_pad, y_min - y_pad)  # y轴倒序
         ax.set_xlabel('X (m)', fontsize=10)

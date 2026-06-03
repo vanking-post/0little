@@ -20,7 +20,7 @@ LOC_LABELS = ['Loc1', 'Loc2', 'Loc3', 'Loc4', 'Loc5']
 MODELS = {**STANDARD_MODELS, **LSTM_MODEL}
 
 
-def load_pca_time_series(locs, loc_keys):
+def load_pca_time_series(locs, loc_keys, sample_len=50):
     """加载时序数据并做 PCA 降维"""
     X_list, y_list, meta_list = [], [], []
     all_frames, scaler = [], StandardScaler()
@@ -33,7 +33,7 @@ def load_pca_time_series(locs, loc_keys):
             for (vid, src), grp in df.groupby(['ID', 'Source']):
                 grp = grp.sort_values('Frame')
                 vals = grp[TS_FEATURES].replace([np.inf, -np.inf], np.nan).fillna(0).values
-                if len(vals) == 50:
+                if len(vals) == sample_len:
                     all_frames.append(vals)
                     v0 = v0_for_loc(loc, loc_keys)
                     y_list.append(overall_risk(grp, v0_kmh=v0))
@@ -79,8 +79,8 @@ def main():
 
     X_ts = y_ts = meta_ts = None
     if LSTM_MODEL:
-        X_ts, y_ts, meta_ts, n_pc = load_pca_time_series(LOCS, LOC_KEYS)
-        print(f"  PCA-LSTM 输入: ({X_ts.shape[0]}, 50, {n_pc})")
+        X_ts, y_ts, meta_ts, n_pc = load_pca_time_series(LOCS, LOC_KEYS, sample_len=75)
+        print(f"  PCA-LSTM 输入: ({X_ts.shape[0]}, {X_ts.shape[1]}, {n_pc})")
 
     fm = evaluate_cross_location(df, MODELS, LOC_KEYS, LOC_LABELS, X_ts=X_ts, y_ts=y_ts, meta_ts=meta_ts)
     rr = evaluate_random_split(df, MODELS, X_ts=X_ts, y_ts=y_ts)

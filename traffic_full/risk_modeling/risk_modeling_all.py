@@ -29,7 +29,7 @@ def main():
 
     X_ts, y_ts, meta_ts = (None, None, None)
     if LSTM_MODEL:
-        X_ts, y_ts, meta_ts = load_time_series(LOCS, LOC_KEYS)
+        X_ts, y_ts, meta_ts = load_time_series(LOCS, LOC_KEYS, sample_len=75)
         print(f"  LSTM 输入: {X_ts.shape}")
 
     fm = evaluate_cross_location(df, MODELS, LOC_KEYS, LOC_LABELS, X_ts=X_ts, y_ts=y_ts, meta_ts=meta_ts)

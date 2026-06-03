@@ -104,6 +104,13 @@ def data_features(df_east_smooth, df_west_smooth):
         # 填充 NaN 为 0
         df['Lateral_Jerk'] = df['Lateral_Jerk'].fillna(0).round(4)
 
+        # 计算纵向加加速度 (Longitudinal Jerk)
+        if 'long_Acc' in df.columns:
+            df['Longitudinal_Jerk'] = df.groupby('ID')['long_Acc'].diff() / df.groupby('ID')['time'].diff()
+            df['Longitudinal_Jerk'] = df['Longitudinal_Jerk'].fillna(0).round(4)
+        else:
+            df['Longitudinal_Jerk'] = 0.0
+
         # 4. 删除原始 ID 列及冗余字段
         id_cols_to_drop = [
             'LeftBehindID', 'LeftSideID', 'LeftFrontID', 'BehindID',

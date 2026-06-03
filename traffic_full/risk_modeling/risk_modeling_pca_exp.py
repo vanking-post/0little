@@ -61,7 +61,7 @@ def load_pca_time_series(locs, loc_keys, sample_len=75):
     fig.tight_layout()
     fig.savefig(os.path.join(OUT_DIR, 'pca_exp_variance.png'), dpi=120, bbox_inches='tight')
     plt.close(fig)
-    print('  ✅ pca_exp_variance.png')
+    print('  [OK] pca_exp_variance.png')
 
     for vals in all_frames:
         X_list.append(pca.transform(scaler.transform(vals)))

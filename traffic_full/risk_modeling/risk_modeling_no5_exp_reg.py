@@ -4,7 +4,7 @@
 === 与分类版的区别 ===
 - 目标: risk_score（连续值 0~1），而非 0/1/2 分类标签
 - 模型: XGBRegressor / RandomForestRegressor / MLPRegressor
-- 评估: MAE / R² / 预测值 vs 真实值散点图
+- 评估: MAE / R2 / 预测值 vs 真实值散点图
 """
 import matplotlib
 matplotlib.use('Agg')
@@ -60,7 +60,7 @@ REGRESSORS = {
 
 
 def evaluate_regression(df, models, test_size=0.2):
-    """回归模型评估：随机 80/20 划分，指标为 MAE / R²"""
+    """回归模型评估：随机 80/20 划分，指标为 MAE / R2"""
     fc = get_feature_cols(df)
     X = df[fc].values
     y = df['risk_score'].values
@@ -86,7 +86,7 @@ def evaluate_regression(df, models, test_size=0.2):
                          'mae': mae, 'r2': r2}
         print(f"\n  {name}:")
         print(f"    MAE = {mae:.4f}  (平均误差 {mae:.2f} 分)")
-        print(f"    R²  = {r2:.4f}  (1=完美, 0=均值基线)")
+        print(f"    R2  = {r2:.4f}  (1=完美, 0=均值基线)")
 
         # 散点图：预测 vs 真实
         ax = axes[idx] if len(models) > 1 else axes
@@ -94,7 +94,7 @@ def evaluate_regression(df, models, test_size=0.2):
         ax.plot([0, 1], [0, 1], 'r--', linewidth=1, alpha=0.6, label='理想 (y_pred = y_true)')
         ax.set_xlabel('真实风险分', fontsize=11)
         ax.set_ylabel('预测风险分', fontsize=11)
-        ax.set_title(f'{name}\nMAE={mae:.4f}  R²={r2:.4f}', fontsize=12, fontweight='bold')
+        ax.set_title(f'{name}\nMAE={mae:.4f}  R2={r2:.4f}', fontsize=12, fontweight='bold')
         ax.legend(fontsize=8)
         ax.set_xlim(0, 1)
         ax.set_ylim(0, 1)
@@ -112,9 +112,9 @@ def evaluate_regression(df, models, test_size=0.2):
     print("  回归汇总")
     print(f"{'='*60}")
     best = min(results.items(), key=lambda x: x[1]['mae'])
-    print(f"  最佳模型: {best[0]} (MAE={best[1]['mae']:.4f}, R²={best[1]['r2']:.4f})")
+    print(f"  最佳模型: {best[0]} (MAE={best[1]['mae']:.4f}, R2={best[1]['r2']:.4f})")
     for name, r in results.items():
-        print(f"  {name:15s}: MAE={r['mae']:.4f}  R²={r['r2']:.4f}")
+        print(f"  {name:15s}: MAE={r['mae']:.4f}  R2={r['r2']:.4f}")
 
     return results
 

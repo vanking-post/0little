@@ -169,21 +169,19 @@ else:
         plt.close()
         print(f'[OK] {out}')
 
-# ===== 跟驰车辆 Velocity 分布图 =====
-print('\n===== 跟驰车辆 Velocity 分布图 =====')
-fig, axes = plt.subplots(5, 1, figsize=(10, 22))
-fig.suptitle('跟驰车辆速度分布', fontsize=16, fontweight='bold', y=1.01)
+# ===== 跟驰车辆 Velocity 分布图（每场景分开保存） =====
+print('\n===== 跟驰车辆 Velocity 分布图（逐场景保存） =====')
 
 for idx, loc_name in enumerate(LOC_DIRS):
-    ax = axes[idx]
     fp = os.path.normpath(os.path.join(DATA_DIR, '..', loc_name, 'traffic_following_change.csv'))
     if not os.path.exists(fp):
-        ax.text(0.5, 0.5, 'No data', ha='center', va='center', transform=ax.transAxes, fontsize=12, color='gray')
-        ax.set_title(loc_name, fontsize=12, fontweight='bold')
+        print(f'    [SKIP] {loc_name}: 文件不存在')
         continue
 
     df = pd.read_csv(fp, low_memory=False)
     v = df['Velocity'].replace([np.inf, -np.inf], np.nan).dropna().values * 3.6  # km/h
+
+    fig, ax = plt.subplots(figsize=(10, 6))
 
     ax.hist(v, bins=60, density=True, alpha=0.6, color='#2ecc71', edgecolor='white', linewidth=0.3)
 
@@ -212,16 +210,27 @@ for idx, loc_name in enumerate(LOC_DIRS):
     ax.axvline(100, color='#f39c12', linewidth=1, linestyle=':', alpha=0.5)
     ax.text(100, ax.get_ylim()[1] * 0.8, 'V0=100', fontsize=7, color='#f39c12', ha='left')
 
-    ax.set_xlabel('Velocity (km/h)', fontsize=9)
-    ax.set_ylabel('Density', fontsize=9)
-    ax.set_title(f'{loc_name}  (n={len(v)})', fontsize=11, fontweight='bold')
+    ax.set_xlabel('Velocity (km/h)', fontsize=10)
+    ax.set_ylabel('Density', fontsize=10)
+    ax.set_title(f'{loc_name} 跟驰车辆速度分布 (n={len(v)})', fontsize=13, fontweight='bold')
+
+    # 各场景 X 轴范围
+    xlim_map = {
+        'location2': (40, 150),
+        'location3': (40, 150),
+        'location4': (40, 150),
+        'location5': (15, 120),
+    }
+    if loc_name in xlim_map:
+        ax.set_xlim(*xlim_map[loc_name])
+
     ax.grid(axis='y', alpha=0.3)
 
-plt.tight_layout()
-out = os.path.join(OUT_DIR, 'velocity_following_distribution.png')
-plt.savefig(out, dpi=120, bbox_inches='tight')
-plt.close()
-print(f'[OK] {out}')
+    plt.tight_layout()
+    out = os.path.join(OUT_DIR, f'velocity_following_distribution_{loc_name}.png')
+    plt.savefig(out, dpi=120, bbox_inches='tight')
+    plt.close()
+    print(f'  [OK] {out}')
 
 # ===== 跟驰车辆 mTTC / B_mTTC 分布图 =====
 print('\n===== 跟驰车辆 mTTC / B_mTTC 分布图 =====')

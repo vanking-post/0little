@@ -94,13 +94,13 @@ def evaluate_cross_location_reg(df, loc_keys, loc_labels):
                 results[name] = {'mae': [], 'r2': []}
             results[name]['mae'].append(mae)
             results[name]['r2'].append(r2)
-            print(f"  {name:15s}: MAE={mae:.4f}  R²={r2:.4f}")
+            print(f"  {name:15s}: MAE={mae:.4f}  R2={r2:.4f}")
 
     print(f"\n--- 跨 Location 汇总 (均值±标准差) ---")
     for name, r in results.items():
         mae_mu, mae_sd = np.mean(r['mae']), np.std(r['mae'])
         r2_mu, r2_sd = np.mean(r['r2']), np.std(r['r2'])
-        print(f"  {name:15s}: MAE={mae_mu:.4f}±{mae_sd:.4f}  R²={r2_mu:.4f}±{r2_sd:.4f}")
+        print(f"  {name:15s}: MAE={mae_mu:.4f}±{mae_sd:.4f}  R2={r2_mu:.4f}±{r2_sd:.4f}")
 
     return results
 
@@ -131,14 +131,14 @@ def evaluate_random_split_reg(df):
 
         print(f"\n  {name}:")
         print(f"    MAE = {mae:.4f}  (平均误差 {mae:.2f} 分)")
-        print(f"    R²  = {r2:.4f}  (1=完美, 0=均值基线)")
+        print(f"    R2  = {r2:.4f}  (1=完美, 0=均值基线)")
 
         ax = axes[idx] if len(REGRESSORS) > 1 else axes
         ax.scatter(y_te, yp, alpha=0.5, s=20, c='#3498db', edgecolors='white', linewidth=0.3)
         ax.plot([0, 1], [0, 1], 'r--', linewidth=1, alpha=0.6, label='理想线')
         ax.set_xlabel('真实风险分', fontsize=11)
         ax.set_ylabel('预测风险分', fontsize=11)
-        ax.set_title(f'{name}\nMAE={mae:.4f}  R²={r2:.4f}', fontsize=12, fontweight='bold')
+        ax.set_title(f'{name}\nMAE={mae:.4f}  R2={r2:.4f}', fontsize=12, fontweight='bold')
         ax.legend(fontsize=8)
         ax.set_xlim(0, 1)
         ax.set_ylim(0, 1)
@@ -153,7 +153,7 @@ def evaluate_random_split_reg(df):
 
     # 汇总
     best = min(results.items(), key=lambda x: x[1]['mae'])
-    print(f"\n最佳模型: {best[0]} (MAE={best[1]['mae']:.4f}, R²={best[1]['r2']:.4f})")
+    print(f"\n最佳模型: {best[0]} (MAE={best[1]['mae']:.4f}, R2={best[1]['r2']:.4f})")
 
     return results
 

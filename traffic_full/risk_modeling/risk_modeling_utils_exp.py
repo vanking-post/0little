@@ -58,7 +58,7 @@ OUT_DIR = 'E:/0little/traffic_full/analysis'
 TS_FEATURES = [
     'Velocity', 'long_Vel', 'lat_Vel', 'long_Acc', 'lat_Acc',
     'Following_dist', 'B_Dist', 'LB_Dist', 'RB_Dist', 'LF_Dist', 'RF_Dist',
-    'TTC', 'Time_Headway'
+    'TTC', 'Time_Headway', 'Lateral_Jerk', 'Longitudinal_Jerk'
 ]
 
 os.makedirs(OUT_DIR, exist_ok=True)
@@ -111,8 +111,8 @@ def load_and_engineer(locs, loc_keys, ts_features=TS_FEATURES,
 
 
 def load_time_series(locs, loc_keys, ts_features=TS_FEATURES,
-                     default_v0=100, loc5_v0=80):
-    """加载时序数据 (n_samples, 50, n_features) 用于 LSTM"""
+                     default_v0=100, loc5_v0=80, sample_len=50):
+    """加载时序数据 (n_samples, seq_len, n_features) 用于 LSTM"""
     X_list, y_list, meta_list = [], [], []
     scaler = StandardScaler()
     all_vals = []
@@ -125,7 +125,7 @@ def load_time_series(locs, loc_keys, ts_features=TS_FEATURES,
             for (vid, src), grp in df.groupby(['ID', 'Source']):
                 grp = grp.sort_values('Frame')
                 vals = grp[ts_features].replace([np.inf, -np.inf], np.nan).fillna(0).values
-                if len(vals) == 50:
+                if len(vals) == sample_len:
                     all_vals.append(vals)
     all_vals = np.concatenate(all_vals, axis=0)
     scaler.fit(all_vals)
@@ -139,7 +139,7 @@ def load_time_series(locs, loc_keys, ts_features=TS_FEATURES,
             for (vid, src), grp in df.groupby(['ID', 'Source']):
                 grp = grp.sort_values('Frame')
                 vals = grp[ts_features].replace([np.inf, -np.inf], np.nan).fillna(0).values
-                if len(vals) != 50:
+                if len(vals) != sample_len:
                     continue
                 vals_s = scaler.transform(vals)
                 v0 = v0_for_loc(loc_key, loc_keys, default_v0, loc5_v0)
@@ -190,10 +190,12 @@ def train_mlp(X_train, y_train, X_test, y_test, seed=SEED):
 
 def train_lstm(X_train, y_train, X_test, y_test, seed=SEED):
     n_classes = 3
+    n_timesteps = X_train.shape[1]
     y_train_cat = tf.keras.utils.to_categorical(y_train, n_classes)
-    cw = {i: get_class_weights(y_train)[i] for i in range(n_classes)}
+    cw_w = get_class_weights(y_train)
+    cw = {i: cw_w[i] for i in range(n_classes) if i in cw_w}
     model = Sequential([
-        Masking(mask_value=0.0, input_shape=(50, X_train.shape[2])),
+        Masking(mask_value=0.0, input_shape=(n_timesteps, X_train.shape[2])),
         LSTM(64, return_sequences=True), Dropout(0.25),
         LSTM(32, return_sequences=False), Dropout(0.25),
         Dense(16, activation='relu'), Dense(n_classes, activation='softmax'),
@@ -542,16 +544,24 @@ def shap_analysis(model, X, feature_names, model_name, save_prefix='shap', max_d
     print(f'\n  SHAP 分析: {model_name}')
 
     # ── 计算 SHAP 值 ──
-    explainer = shap.TreeExplainer(model)
-    shap_values = explainer.shap_values(X)
-
-    # 统一为 3D (N, F, C): list → ndarray
-    if isinstance(shap_values, list):
-        shap_3d = np.array(shap_values).transpose(1, 2, 0)  # (C, N, F) → (N, F, C)
-    elif shap_values.ndim == 3:
-        shap_3d = shap_values
+    if model_name == 'XGBoost' and hasattr(model, 'get_booster'):
+        # XGBoost 3.x 原生 SHAP（绕过 shap.TreeExplainer 版本兼容问题）
+        import xgboost as xgb
+        shap_values = model.get_booster().predict(
+            xgb.DMatrix(X), pred_contribs=True)  # (N, n_classes, n_features+1)
+        # 去掉最后一个 bias 列, 转置为 (N, F, C)
+        shap_3d = np.array(shap_values)[:, :, :-1].transpose(0, 2, 1)  # (N, F, C)
     else:
-        shap_3d = shap_values[:, :, np.newaxis]  # 2D → (N, F, 1)
+        # RandomForest: shap.TreeExplainer 工作正常
+        explainer = shap.TreeExplainer(model)
+        shap_vals = explainer.shap_values(X)
+        # 统一为 3D (N, F, C): list → ndarray
+        if isinstance(shap_vals, list):
+            shap_3d = np.array(shap_vals).transpose(1, 2, 0)  # (C, N, F) → (N, F, C)
+        elif shap_vals.ndim == 3:
+            shap_3d = shap_vals
+        else:
+            shap_3d = shap_vals[:, :, np.newaxis]  # 2D → (N, F, 1)
 
     n_classes = shap_3d.shape[2]
     class_names = ['高风险', '中风险', '低风险']

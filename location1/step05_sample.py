@@ -142,7 +142,15 @@ def compute_features_with_mttc(df_1_smooth, df_2_smooth, label_1='1', label_2='2
             print(f"警告: 方向 {label} 缺少 lat_Acc 列，无法计算 Lateral Jerk，填充为 0")
             df['Lateral_Jerk'] = 0.0
 
-        # 4. 删除原始邻车 ID 列
+        # 4. 计算纵向加加速度 (Longitudinal Jerk)
+        if 'long_Acc' in df.columns:
+            df['Longitudinal_Jerk'] = df.groupby('ID')['long_Acc'].diff() / df.groupby('ID')['Time'].diff()
+            df['Longitudinal_Jerk'] = df['Longitudinal_Jerk'].fillna(0).round(4)
+        else:
+            print(f"警告: 方向 {label} 缺少 long_Acc 列，无法计算 Longitudinal Jerk，填充为 0")
+            df['Longitudinal_Jerk'] = 0.0
+
+        # 5. 删除原始邻车 ID 列
         id_cols_to_drop = [
             'LeftBehindID', 'LeftSideID', 'LeftFrontID', 'BehindID',
             'EgoVehicleID', 'FrontID', 'RightBehindID', 'RightSideID',
