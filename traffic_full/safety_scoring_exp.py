@@ -21,50 +21,50 @@ B = 1.3  # 速度修正参数
 THRESH_LANE_CHANGE = {'mid': 0.40, 'high': 0.60}  # 变道车辆
 THRESH_FOLLOWING   = {'mid': 0.20, 'high': 0.35}  # 跟驰车辆
 
-# ---------- 指标配置（变道车辆） ----------
+# ---------- 指标配置（变道车辆）当前使用：专家经验权重 ----------
 METRICS = [
-    {'name': 'mTTC',         'col': 'mTTC',         'w': 0.247, 'k': 12.0,
+    {'name': 'mTTC',         'col': 'mTTC',         'w': 0.25, 'k': 12.0,
      'valid': lambda v: (v > 0)},
-    {'name': 'THW',          'col': 'Time_Headway',  'w': 0.083, 'k': 6.0,
+    {'name': 'THW',          'col': 'Time_Headway',  'w': 0.2, 'k': 6.0,
      'valid': lambda v: (v > 0)},
-    {'name': 'PET',          'col': 'PET',           'w': 0.131, 'k': 12.0,
+    {'name': 'PET',          'col': 'PET',           'w': 0.2, 'k': 12.0,
      'valid': lambda v: ~np.isinf(v) & ~np.isnan(v) & (v > 0)},
-    {'name': 'F_ETTC',       'col': 'F_ETTC',        'w': 0.356, 'k': 12.0,
+    {'name': 'F_ETTC',       'col': 'F_ETTC',        'w': 0.2, 'k': 12.0,
      'valid': lambda v: (v > 0)},
-    {'name': 'OL_PET',       'col': 'OL_PET',        'w': 0.183, 'k': 12.0,
+    {'name': 'OL_PET',       'col': 'OL_PET',        'w': 0.15, 'k': 12.0,
      'valid': lambda v: ~np.isinf(v) & ~np.isnan(v) & (v > 0)},
 ]
 
-# ---------- 指标配置（跟驰车辆） ----------
+# ---------- 指标配置（跟驰车辆）当前使用：专家经验权重 ----------
 FOLLOWING_METRICS = [
-    {'name': 'mTTC',    'col': 'mTTC',    'w': 0.463, 'k': 12.0,
+    {'name': 'mTTC',    'col': 'mTTC',    'w': 0.4, 'k': 12.0,
      'valid': lambda v: (v > 0)},
-    {'name': 'THW',     'col': 'Time_Headway', 'w': 0.114, 'k': 6.0,
+    {'name': 'THW',     'col': 'Time_Headway', 'w': 0.3, 'k': 6.0,
      'valid': lambda v: (v > 0)},
-    {'name': 'B_mTTC',  'col': 'B_mTTC',  'w': 0.423, 'k': 12.0,
+    {'name': 'B_mTTC',  'col': 'B_mTTC',  'w': 0.4, 'k': 12.0,
      'valid': lambda v: (v > 0)},
 ]
-# #备选权重专家评分
+
+# ===== 备选权重：EWM 客观权重（取消注释使用） =====
 # METRICS = [
-#     {'name': 'mTTC',         'col': 'mTTC',         'w': 0.25, 'k': 12.0,
+#     {'name': 'mTTC',         'col': 'mTTC',         'w': 0.247, 'k': 12.0,
 #      'valid': lambda v: (v > 0)},
-#     {'name': 'THW',          'col': 'Time_Headway',  'w': 0.2, 'k': 6.0,
+#     {'name': 'THW',          'col': 'Time_Headway',  'w': 0.083, 'k': 6.0,
 #      'valid': lambda v: (v > 0)},
-#     {'name': 'PET',          'col': 'PET',           'w': 0.2, 'k': 12.0,
+#     {'name': 'PET',          'col': 'PET',           'w': 0.131, 'k': 12.0,
 #      'valid': lambda v: ~np.isinf(v) & ~np.isnan(v) & (v > 0)},
-#     {'name': 'F_ETTC',       'col': 'F_ETTC',        'w': 0.2, 'k': 12.0,
+#     {'name': 'F_ETTC',       'col': 'F_ETTC',        'w': 0.356, 'k': 12.0,
 #      'valid': lambda v: (v > 0)},
-#     {'name': 'OL_PET',       'col': 'OL_PET',        'w': 0.15, 'k': 12.0,
+#     {'name': 'OL_PET',       'col': 'OL_PET',        'w': 0.183, 'k': 12.0,
 #      'valid': lambda v: ~np.isinf(v) & ~np.isnan(v) & (v > 0)},
 # ]
 #
-# # ---------- 指标配置（跟驰车辆） ----------
 # FOLLOWING_METRICS = [
-#     {'name': 'mTTC',    'col': 'mTTC',    'w': 0.4, 'k': 12.0,
+#     {'name': 'mTTC',    'col': 'mTTC',    'w': 0.463, 'k': 12.0,
 #      'valid': lambda v: (v > 0)},
-#     {'name': 'THW',     'col': 'Time_Headway', 'w': 0.3, 'k': 6.0,
+#     {'name': 'THW',     'col': 'Time_Headway', 'w': 0.114, 'k': 6.0,
 #      'valid': lambda v: (v > 0)},
-#     {'name': 'B_mTTC',  'col': 'B_mTTC',  'w': 0.4, 'k': 12.0,
+#     {'name': 'B_mTTC',  'col': 'B_mTTC',  'w': 0.423, 'k': 12.0,
 #      'valid': lambda v: (v > 0)},
 # ]
 
