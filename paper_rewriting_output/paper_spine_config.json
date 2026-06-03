@@ -1,0 +1,20 @@
+{
+  "workflow": "build_from_materials",
+  "scene": "journal",
+  "tier": "flash",
+  "output_language": "zh",
+  "target_name": "基于自然驾驶轨迹数据的交通冲突风险建模研究",
+  "materials_dir": "",
+  "draft_path": "",
+  "user_motivation": "",
+  "official_urls": [],
+  "reference_mode": "local_first",
+  "reference_paths": ["E:\\0little\\paper\\reference"],
+  "citation_target_count": 20,
+  "special_requirements": [],
+  "word_output": "none",
+  "translation_package": "none",
+  "humanize_tier": "none",
+  "detection_platform": "general",
+  "ui_language": "zh"
+}
