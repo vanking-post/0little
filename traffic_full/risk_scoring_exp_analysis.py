@@ -23,7 +23,7 @@ LABELS = {'lane_change': '变道车辆', 'following': '跟驰车辆'}
 # 风险等级阈值
 THRESHOLDS = {
     'lane_change': {'mid': 0.40, 'high': 0.60},
-    'following':   {'mid': 0.25, 'high': 0.45},
+    'following':   {'mid': 0.20, 'high': 0.35},
 }
 
 # 图表尺寸与标题
@@ -74,15 +74,14 @@ df_lc, df_fl = load_all_scores()
 print(f'变道车辆: {len(df_lc)} 辆')
 print(f'跟驰车辆: {len(df_fl)} 辆')
 
-# ── 创建对比图 ──
-fig, axes = plt.subplots(2, 2, figsize=FIG_SIZE)
-fig.suptitle(FIG_TITLE, fontsize=16, fontweight='bold')
+# ── 图1：风险分分布（排除 score=0）+ 箱线图 | 左右排布 ──
+fig, axes = plt.subplots(1, 2, figsize=(16, 6))
+fig.suptitle('跟驰 vs 变道车辆 — 风险分分布与箱线图', fontsize=16, fontweight='bold')
 
-# ── 左上：score=0 占比（左轴）+ >0 分布直方图（右轴）──
-ax = axes[0, 0]
+# 左：分布直方图（含 score=0 占比小窗）
+ax = axes[0]
 
-# 子图1：score=0 占比柱状图
-ax2 = axes[0, 0].inset_axes(INSET_POS)
+ax2 = axes[0].inset_axes(INSET_POS)
 for i, (key, scores) in enumerate([('lane_change', df_lc['score']), ('following', df_fl['score'])]):
     zero_pct = (scores == 0).mean() * 100
     ax2.bar(i, zero_pct, width=0.4, color=COLORS[key], alpha=0.7)
@@ -93,7 +92,6 @@ ax2.set_ylabel('score=0 占比 (%)', fontsize=8)
 ax2.set_ylim(0, 35)
 ax2.grid(axis='y', alpha=0.3)
 
-# 子图2：>0 的分布直方图
 bins = np.linspace(0, 1, 50)
 for key, scores in [('lane_change', df_lc['score']), ('following', df_fl['score'])]:
     pos = scores[scores > 0]
@@ -106,37 +104,19 @@ ax.grid(axis='y', alpha=0.3)
 ax.set_title('风险分分布（排除 score=0）', fontsize=13, fontweight='bold')
 ax.set_xlim(0, 1)
 
-# ── 右上：累积分布（CDF）──
-ax = axes[0, 1]
-for key, scores in [('lane_change', df_lc['score']), ('following', df_fl['score'])]:
-    sorted_s = np.sort(scores)
-    cdf = np.arange(1, len(sorted_s) + 1) / len(sorted_s)
-    ax.plot(sorted_s, cdf, color=COLORS[key], linewidth=2, label=LABELS[key])
-    # 标注 P50 / P85
-    t = THRESHOLDS[key]
-    for p, pct in [(t['mid'], 50), (t['high'], 85)]:
-        ax.axvline(p, color=COLORS[key], linewidth=1, linestyle='--', alpha=0.4)
-        ax.axhline(pct / 100, color=COLORS[key], linewidth=1, linestyle=':', alpha=0.4)
-ax.set_xlabel('风险分', fontsize=11)
-ax.set_ylabel('累积比例', fontsize=11)
-ax.legend(fontsize=9)
-ax.grid(alpha=0.3)
-ax.set_title('累积分布函数 (CDF)', fontsize=13, fontweight='bold')
-
-# ── 左下：箱线图 ──
-ax = axes[1, 0]
+# 右：箱线图（横向）
+ax = axes[1]
 bp_data = [df_lc['score'].values, df_fl['score'].values]
-bp = ax.boxplot(bp_data, tick_labels=['变道车辆', '跟驰车辆'], patch_artist=True,
+bp = ax.boxplot(bp_data, tick_labels=['变道车辆', '跟驰车辆'], patch_artist=True, vert=False,
                 widths=0.4, showmeans=True,
                 meanprops=dict(marker='D', markerfacecolor='white', markeredgecolor='black'))
 for patch, color in zip(bp['boxes'], [COLORS['lane_change'], COLORS['following']]):
     patch.set_facecolor(color)
     patch.set_alpha(0.5)
-ax.set_ylabel('风险分', fontsize=11)
-ax.grid(axis='y', alpha=0.3)
+ax.set_xlabel('风险分', fontsize=11)
+ax.grid(axis='x', alpha=0.3)
 ax.set_title('风险分箱线图', fontsize=13, fontweight='bold')
 
-# 添加统计注释
 for i, (name, scores) in enumerate([('变道车辆', df_lc['score']), ('跟驰车辆', df_fl['score'])]):
     stats_text = (f'{name}\n'
                   f'均值={scores.mean():.3f}  中位数={np.median(scores):.3f}\n'
@@ -147,9 +127,34 @@ for i, (name, scores) in enumerate([('变道车辆', df_lc['score']), ('跟驰�
             ha='right', va='top',
             bbox=dict(boxstyle='round,pad=0.4', facecolor='white', alpha=0.8, edgecolor='gray'))
 
-# ── 右下：风险等级比例堆叠图 ──
-ax = axes[1, 1]
-categories = ['低风险', '中风险', '高风险']
+plt.tight_layout()
+out1 = os.path.join(OUT_DIR, 'risk_score_distribution_box.png')
+plt.savefig(out1, dpi=150, bbox_inches='tight')
+plt.close()
+print(f'\n[OK] {out1}')
+
+# ── 图2：CDF + 风险等级比例 | 左右排布 ──
+fig, axes = plt.subplots(1, 2, figsize=(16, 6))
+fig.suptitle('跟驰 vs 变道车辆 — 累积分布与风险等级比例', fontsize=16, fontweight='bold')
+
+# 左：CDF
+ax = axes[0]
+for key, scores in [('lane_change', df_lc['score']), ('following', df_fl['score'])]:
+    sorted_s = np.sort(scores)
+    cdf = np.arange(1, len(sorted_s) + 1) / len(sorted_s)
+    ax.plot(sorted_s, cdf, color=COLORS[key], linewidth=2, label=LABELS[key])
+    t = THRESHOLDS[key]
+    for p, pct in [(t['mid'], 50), (t['high'], 85)]:
+        ax.axvline(p, color=COLORS[key], linewidth=1, linestyle='--', alpha=0.4)
+        ax.axhline(pct / 100, color=COLORS[key], linewidth=1, linestyle=':', alpha=0.4)
+ax.set_xlabel('风险分', fontsize=11)
+ax.set_ylabel('累积比例', fontsize=11)
+ax.legend(fontsize=9)
+ax.grid(alpha=0.3)
+ax.set_title('累积分布函数 (CDF)', fontsize=13, fontweight='bold')
+
+# 右：风险等级比例堆叠图
+ax = axes[1]
 x_pos = np.arange(2)
 width = 0.35
 
@@ -166,7 +171,6 @@ for i, (key, scores) in enumerate([('lane_change', df_lc['score']), ('following'
     ax.bar(x_pos[i], high / total * 100, width,
            bottom=(low + mid) / total * 100,
            label='高风险' if i == 0 else None, color='#e74c3c', alpha=0.8)
-    # 标注百分比
     y_offset = 0
     for pct, c in [(low / total * 100, '#27ae60'), (mid / total * 100, '#f39c12'), (high / total * 100, '#e74c3c')]:
         if pct > 5:
@@ -183,7 +187,7 @@ ax.grid(axis='y', alpha=0.3)
 ax.set_title('风险等级比例', fontsize=13, fontweight='bold')
 
 plt.tight_layout()
-out = os.path.join(OUT_DIR, 'risk_score_comparison.png')
-plt.savefig(out, dpi=150, bbox_inches='tight')
+out2 = os.path.join(OUT_DIR, 'risk_score_cdf_levels.png')
+plt.savefig(out2, dpi=150, bbox_inches='tight')
 plt.close()
-print(f'\n[OK] {out}')
+print(f'[OK] {out2}')

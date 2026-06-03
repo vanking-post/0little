@@ -36,7 +36,6 @@ METRICS = [
 ]
 
 # ---------- 指标配置（跟驰车辆） ----------
-# 仅前车(mTTC/THW) + 后车(B_mTTC)，权重归一化到和为 1
 FOLLOWING_METRICS = [
     {'name': 'mTTC',    'col': 'mTTC',    'w': 0.463, 'k': 12.0,
      'valid': lambda v: (v > 0)},
@@ -45,7 +44,29 @@ FOLLOWING_METRICS = [
     {'name': 'B_mTTC',  'col': 'B_mTTC',  'w': 0.423, 'k': 12.0,
      'valid': lambda v: (v > 0)},
 ]
-
+# #备选权重专家评分
+# METRICS = [
+#     {'name': 'mTTC',         'col': 'mTTC',         'w': 0.25, 'k': 12.0,
+#      'valid': lambda v: (v > 0)},
+#     {'name': 'THW',          'col': 'Time_Headway',  'w': 0.2, 'k': 6.0,
+#      'valid': lambda v: (v > 0)},
+#     {'name': 'PET',          'col': 'PET',           'w': 0.2, 'k': 12.0,
+#      'valid': lambda v: ~np.isinf(v) & ~np.isnan(v) & (v > 0)},
+#     {'name': 'F_ETTC',       'col': 'F_ETTC',        'w': 0.2, 'k': 12.0,
+#      'valid': lambda v: (v > 0)},
+#     {'name': 'OL_PET',       'col': 'OL_PET',        'w': 0.15, 'k': 12.0,
+#      'valid': lambda v: ~np.isinf(v) & ~np.isnan(v) & (v > 0)},
+# ]
+#
+# # ---------- 指标配置（跟驰车辆） ----------
+# FOLLOWING_METRICS = [
+#     {'name': 'mTTC',    'col': 'mTTC',    'w': 0.4, 'k': 12.0,
+#      'valid': lambda v: (v > 0)},
+#     {'name': 'THW',     'col': 'Time_Headway', 'w': 0.3, 'k': 6.0,
+#      'valid': lambda v: (v > 0)},
+#     {'name': 'B_mTTC',  'col': 'B_mTTC',  'w': 0.4, 'k': 12.0,
+#      'valid': lambda v: (v > 0)},
+# ]
 
 def _frame_contrib(val, k):
     """单帧的风险贡献: exp(-val/k)，val 越小、贡献越接近 1"""
