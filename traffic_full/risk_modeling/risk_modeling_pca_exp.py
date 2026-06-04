@@ -49,15 +49,33 @@ def load_pca_time_series(locs, loc_keys, sample_len=75):
     n_comp = pca.n_components_
     print(f'  PCA: {len(TS_FEATURES)} dim → {n_comp} dim (方差={pca.explained_variance_ratio_.sum():.3f})')
 
-    # 绘制方差累计图
-    fig, ax = plt.subplots(figsize=(8, 5))
+    # 绘制方差累计图（双 Y 轴）
+    fig, ax1 = plt.subplots(figsize=(8, 5))
     cum_var = np.cumsum(pca.explained_variance_ratio_)
-    ax.bar(range(1, n_comp + 1), pca.explained_variance_ratio_, alpha=0.7, label='单个方差')
-    ax.step(range(1, n_comp + 1), cum_var, where='mid', color='#e74c3c', linewidth=2, label='累计方差')
-    ax.axhline(y=0.95, color='gray', linestyle='--', alpha=0.5)
-    ax.set_xlabel('主成分', fontsize=12); ax.set_ylabel('方差占比', fontsize=12)
-    ax.set_title(f'PCA 方差累计 (exp版, {len(TS_FEATURES)}→{n_comp}, {cum_var[-1]:.1%})', fontsize=14, fontweight='bold')
-    ax.legend(fontsize=10)
+    x = range(1, n_comp + 1)
+
+    # 左轴：单个方差柱状图
+    bars = ax1.bar(x, pca.explained_variance_ratio_, alpha=0.7, label='单个方差', color='#3498db')
+    ax1.set_xlabel('主成分', fontsize=12)
+    ax1.set_ylabel('单个方差占比', fontsize=12, color='#3498db')
+    ax1.tick_params(axis='y', labelcolor='#3498db')
+
+    # 右轴：累积方差光滑曲线
+    ax2 = ax1.twinx()
+    ax2.plot(x, cum_var, color='#e74c3c', linewidth=2.5, marker='o', markersize=4,
+             label='累计方差', alpha=0.9)
+    ax2.axhline(y=0.95, color='gray', linestyle='--', alpha=0.5, linewidth=1)
+    ax2.set_ylabel('累计方差占比', fontsize=12, color='#e74c3c')
+    ax2.tick_params(axis='y', labelcolor='#e74c3c')
+    ax2.set_ylim(0, 1.05)
+
+    # 图例合并
+    lines1, labels1 = ax1.get_legend_handles_labels()
+    lines2, labels2 = ax2.get_legend_handles_labels()
+    ax1.legend(lines1 + lines2, labels1 + labels2, fontsize=10, loc='center right')
+
+    ax1.set_title(f'PCA 方差累计 (exp版, {len(TS_FEATURES)}→{n_comp}, {cum_var[-1]:.1%})',
+                  fontsize=14, fontweight='bold')
     fig.tight_layout()
     fig.savefig(os.path.join(OUT_DIR, 'pca_exp_variance.png'), dpi=120, bbox_inches='tight')
     plt.close(fig)

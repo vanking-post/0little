@@ -13,6 +13,7 @@ import sys
 # 导入安全评分模块
 sys.path.insert(0, 'E:/0little/traffic_full')
 from safety_scoring import overall_risk, risk_label
+from safety_scoring_exp import risk_score, following_risk_score, risk_label as risk_label_exp
 
 plt.rcParams['font.sans-serif'] = ['SimHei', 'Microsoft YaHei', 'DejaVu Sans']
 plt.rcParams['axes.unicode_minus'] = False
@@ -377,86 +378,123 @@ def plot_rsd_distributions(df):
 
 
 def plot_risk_distribution_by_location(df):
-    """图7: 5个场景的高中低风险车辆数量对比柱状图"""
-    print("\n计算各车辆风险等级...")
-    
-    # 按车辆分组计算风险评分
-    vehicle_risks = []
-    grouped = df.groupby(['ID', 'Source', 'location'])
-    
-    for (vid, source, loc), grp in grouped:
-        try:
-            risk_score = overall_risk(grp, v0_kmh=100)
-            label, color = risk_label(risk_score)
-            vehicle_risks.append({
-                'ID': vid,
-                'Source': source,
-                'location': loc,
-                'risk_code': risk_score,
-                'risk_label': label,
-                'color': color
-            })
-        except Exception as e:
-            continue
-    
-    if not vehicle_risks:
-        print("  ⚠️ 无法计算风险等级，跳过此图")
-        return
-    
-    risk_df = pd.DataFrame(vehicle_risks)
-    
-    # 统计每个场景的风险等级分布
+    """图7: 变道 vs 跟驰 — 各场景风险等级对比（上下对称柱状图）"""
+    import os
+    print("\n计算各车辆风险等级（变道 + 跟驰）...")
+
     locations = ['location1', 'location2', 'location3', 'location4', 'location5']
     risk_levels = ['高风险', '中风险', '低风险']
-    risk_codes = [0, 1, 2]
-    colors_map = {'高风险': '#e74c3c', '中风险': '#f39c12', '低风险': '#27ae60'}
-    
+    colors_lc = {'高风险': '#e74c3c', '中风险': '#f39c12', '低风险': '#27ae60'}
+    colors_fl = {'高风险': '#c0392b', '中风险': '#d35400', '低风险': '#1e8449'}
+
+    # ── 变道车辆 ──
+    lc_counts = {loc: {lvl: 0 for lvl in risk_levels} for loc in locations}
+    for (vid, source, loc), grp in df.groupby(['ID', 'Source', 'location']):
+        try:
+            sc = risk_score(grp, v0_kmh=80 if loc == 'location5' else 100)
+            lbl, _ = risk_label_exp(sc, 'lane_change')
+            lc_counts[loc][lbl] += 1
+        except:
+            continue
+
+    # ── 跟驰车辆 ──
+    fl_counts = {loc: {lvl: 0 for lvl in risk_levels} for loc in locations}
+    for loc in locations:
+        fp = os.path.normpath(os.path.join(LOCS[loc], 'traffic_following_change.csv'))
+        if not os.path.exists(fp):
+            continue
+        df_f = pd.read_csv(fp, low_memory=False)
+        for (vid, src), grp in df_f.groupby(['ID', 'Source']):
+            try:
+                sc = following_risk_score(grp, v0_kmh=80 if loc == 'location5' else 100)
+                lbl, _ = risk_label_exp(sc, 'following')
+                fl_counts[loc][lbl] += 1
+            except:
+                continue
+
+    # ── 转为百分比（变道/跟驰样本量差异大，百分比可对比风险分布模式）──
+    lc_pct = {loc: {} for loc in locations}
+    fl_pct = {loc: {} for loc in locations}
+    for loc in locations:
+        lc_tot = sum(lc_counts[loc].values()) or 1
+        fl_tot = sum(fl_counts[loc].values()) or 1
+        for lvl in risk_levels:
+            lc_pct[loc][lvl] = lc_counts[loc][lvl] / lc_tot * 100
+            fl_pct[loc][lvl] = fl_counts[loc][lvl] / fl_tot * 100
+
+    # ── 绘图：以 y=0 为中心，变道向上、跟驰向下 ──
     fig, ax = plt.subplots(figsize=(14, 7))
-    
     x_pos = np.arange(len(locations))
     width = 0.25
-    
-    for idx, (level, code) in enumerate(zip(risk_levels, risk_codes)):
-        counts = []
-        for loc in locations:
-            count = len(risk_df[(risk_df['location'] == loc) & (risk_df['risk_code'] == code)])
-            counts.append(count)
-        
-        bars = ax.bar(x_pos + idx * width, counts, width, 
-                     label=level, color=colors_map[level], alpha=0.85, edgecolor='white')
-        
-        # 在柱状图上标注数值
-        for bar, count in zip(bars, counts):
-            if count > 0:
+
+    # 找最高百分比，用于对称轴缩放（让最高柱占 ~87% 空间）
+    max_pct = max(
+        max(lc_pct[loc][lvl] for loc in locations for lvl in risk_levels),
+        max(fl_pct[loc][lvl] for loc in locations for lvl in risk_levels)
+    )
+
+    for idx, lvl in enumerate(risk_levels):
+        lc_vals = [lc_pct[loc][lvl] for loc in locations]
+        fl_vals = [fl_pct[loc][lvl] for loc in locations]
+
+        # 上：变道
+        bars = ax.bar(x_pos + idx * width, lc_vals, width,
+                      label=f'变道-{lvl}', color=colors_lc[lvl], alpha=0.85, edgecolor='white')
+        for bar, v in zip(bars, lc_vals):
+            if v > 1:
                 ax.text(bar.get_x() + bar.get_width() / 2, bar.get_height() + 2,
-                       str(count), ha='center', va='bottom', fontsize=9, fontweight='bold')
-    
-    # 设置标签
-    loc_labels = ['场景1', '场景2', '场景3', '场景4', '场景5']
+                        f'{v:.0f}%', ha='center', va='bottom', fontsize=8, fontweight='bold',
+                        color=colors_lc[lvl])
+
+        # 下：跟驰（取负值显示）
+        bars = ax.bar(x_pos + idx * width, [-v for v in fl_vals], width,
+                      label=f'跟驰-{lvl}', color=colors_fl[lvl], alpha=0.85, edgecolor='white')
+        for bar, v in zip(bars, fl_vals):
+            if v > 1:
+                ax.text(bar.get_x() + bar.get_width() / 2, bar.get_height() - 2,
+                        f'{v:.0f}%', ha='center', va='top', fontsize=8, fontweight='bold',
+                        color=colors_fl[lvl])
+
+    # 对称百分比轴（两侧空间相等，最高比例柱占 ~87%）
+    margin_pct = max_pct * 0.15
+    ax.set_ylim(-(max_pct + margin_pct), max_pct + margin_pct)
+    ax.axhline(0, color='black', linewidth=0.8)
+    ax.set_yticks([])
     ax.set_xlabel('场景位置', fontsize=12, fontweight='bold')
-    ax.set_ylabel('车辆数量', fontsize=12, fontweight='bold')
-    ax.set_title('5个场景的高中低风险车辆数量对比', fontsize=14, fontweight='bold')
+    ax.set_ylabel('跟驰 ↑ / 变道 ↓', fontsize=12, fontweight='bold')
+    ax.set_title('变道 vs 跟驰 — 各场景风险等级占比对比', fontsize=14, fontweight='bold')
     ax.set_xticks(x_pos + width)
+    loc_labels = ['场景1', '场景2', '场景3', '场景4', '场景5']
     ax.set_xticklabels(loc_labels, fontsize=11)
-    ax.legend(title='风险等级', fontsize=10, title_fontsize=11, loc='upper right')
+
+    # 双图例：变道 + 跟驰
+    handles_lc = [plt.Rectangle((0, 0), 1, 1, fc=colors_lc[lvl], alpha=0.85) for lvl in risk_levels]
+    handles_fl = [plt.Rectangle((0, 0), 1, 1, fc=colors_fl[lvl], alpha=0.85) for lvl in risk_levels]
+    leg1 = ax.legend(handles_lc, [f'变道-{lvl}' for lvl in risk_levels],
+                     title='变道', loc='upper left', fontsize=9, title_fontsize=10)
+    ax.add_artist(leg1)
+    ax.legend(handles_fl, [f'跟驰-{lvl}' for lvl in risk_levels],
+              title='跟驰', loc='lower left', fontsize=9, title_fontsize=10)
     ax.grid(axis='y', alpha=0.3, linestyle='--')
-    
+
     fig.tight_layout()
     fig.savefig(os.path.join(OUT_DIR, 'risk_by_location.png'), dpi=120, bbox_inches='tight')
     plt.close(fig)
     print('  ✅ risk_by_location.png')
-    
+
     # 打印统计信息
     print("\n各场景风险等级分布:")
     print("-" * 70)
     for loc in locations:
-        loc_data = risk_df[risk_df['location'] == loc]
-        total = len(loc_data)
-        high = len(loc_data[loc_data['risk_code'] == 0])
-        mid = len(loc_data[loc_data['risk_code'] == 1])
-        low = len(loc_data[loc_data['risk_code'] == 2])
-        print(f"{loc}: 总计={total}, 高风险={high}({high/total*100:.1f}%), "
-              f"中风险={mid}({mid/total*100:.1f}%), 低风险={low}({low/total*100:.1f}%)")
+        lc_t = sum(lc_counts[loc].values())
+        fl_t = sum(fl_counts[loc].values())
+        print(f"{loc}:")
+        print(f"  变道({lc_t}辆): 高={lc_counts[loc]['高风险']}({lc_counts[loc]['高风险']/max(lc_t,1)*100:.1f}%) "
+              f"中={lc_counts[loc]['中风险']}({lc_counts[loc]['中风险']/max(lc_t,1)*100:.1f}%) "
+              f"低={lc_counts[loc]['低风险']}({lc_counts[loc]['低风险']/max(lc_t,1)*100:.1f}%)")
+        print(f"  跟驰({fl_t}辆): 高={fl_counts[loc]['高风险']}({fl_counts[loc]['高风险']/max(fl_t,1)*100:.1f}%) "
+              f"中={fl_counts[loc]['中风险']}({fl_counts[loc]['中风险']/max(fl_t,1)*100:.1f}%) "
+              f"低={fl_counts[loc]['低风险']}({fl_counts[loc]['低风险']/max(fl_t,1)*100:.1f}%)")
 
 
 def plot_overall_risk_distribution(df):
@@ -554,18 +592,53 @@ def plot_overall_risk_distribution(df):
 
 
 def plot_risk_heatmap(df):
-    """图8: 各场景高风险位置热力图"""
-    from safety_scoring import overall_risk
+    """图8: 各场景风险位置热力图（仅高风险车辆点位）"""
+    import os
 
-    print("\n计算各车辆风险...")
-    risk_map = {}
+    print("\n计算各车辆风险标签（仅高风险）...")
+
+    # ── 变道：逐车辆算 risk_score → risk_label，仅标记高风险 ──
+    lc_risk_map = {}
     for (vid, source, loc), grp in df.groupby(['ID', 'Source', 'location']):
-        v0 = 80 if loc == 'location5' else 100
-        risk_map[(vid, source, loc)] = overall_risk(grp, v0_kmh=v0)
+        try:
+            sc = risk_score(grp, v0_kmh=80 if loc == 'location5' else 100)
+            lbl, _ = risk_label_exp(sc, 'lane_change')
+            lc_risk_map[(vid, source, loc)] = 1 if lbl == '高风险' else 0
+        except:
+            continue
 
-    df['risk_code'] = df.apply(lambda r: risk_map.get((r['ID'], r['Source'], r['location']), 2), axis=1)
-    high = df[df['risk_code'] == 0]
-    print(f"  高风险车辆: {high.groupby(['ID','Source']).ngroups} 辆")
+    df_lc = df.copy()
+    df_lc['is_high_risk'] = df_lc.apply(
+        lambda r: lc_risk_map.get((r['ID'], r['Source'], r['location']), 0), axis=1)
+
+    # ── 跟驰：逐车辆算 following_risk_score → risk_label，仅标记高风险 ──
+    df_fl_parts = []
+    for loc_name in LOCS:
+        fp = os.path.normpath(os.path.join(LOCS[loc_name], 'traffic_following_change.csv'))
+        if not os.path.exists(fp):
+            continue
+        df_f = pd.read_csv(fp, low_memory=False)
+        df_f['location'] = loc_name
+        df_f['is_high_risk'] = 0
+        for (vid, src), grp in df_f.groupby(['ID', 'Source']):
+            try:
+                sc = following_risk_score(grp, v0_kmh=80 if loc_name == 'location5' else 100)
+                lbl, _ = risk_label_exp(sc, 'following')
+                if lbl == '高风险':
+                    df_f.loc[(df_f['ID'] == vid) & (df_f['Source'] == src), 'is_high_risk'] = 1
+            except:
+                continue
+        df_fl_parts.append(df_f)
+
+    df_fl = pd.concat(df_fl_parts, ignore_index=True) if df_fl_parts else pd.DataFrame()
+    df_all = pd.concat([df_lc, df_fl], ignore_index=True)
+    n_high_risk = df_all['is_high_risk'].sum()
+
+    n_vehicles = df_all.groupby(['ID', 'Source']).ngroups
+    print(f"  总车辆: {n_vehicles} (变道 {df_lc.groupby(['ID','Source']).ngroups}, "
+          f"跟驰 {df_fl.groupby(['ID','Source']).ngroups if len(df_fl) else 0})")
+    print(f"  高风险帧数: {int(n_high_risk)}/{len(df_all)} ({n_high_risk/len(df_all)*100:.1f}%)"
+          )
 
     loc_keys = list(LOCS.keys())
     fig, axes = plt.subplots(1, 5, figsize=(25, 5.5), constrained_layout=True)
@@ -573,14 +646,15 @@ def plot_risk_heatmap(df):
 
     for idx, loc_name in enumerate(loc_keys):
         ax = axes[idx]
-        loc_high = high[high['location'] == loc_name]
-        loc_all = df[df['location'] == loc_name]
-        if len(loc_high) == 0:
-            ax.set_title(f'{loc_name} (无高风险)', fontsize=13, fontweight='bold')
+        loc_df = df_all[df_all['location'] == loc_name]
+        if len(loc_df) == 0:
+            ax.set_title(f'{loc_name} (无数据)', fontsize=13, fontweight='bold')
             continue
 
-        x_all = loc_all['X'].values
-        y_all = loc_all['Y'].values
+        x_all = loc_df['X'].values
+        y_all = loc_df['Y'].values
+        weights = loc_df['is_high_risk'].values
+
         x_min, x_max = np.percentile(x_all, 1), np.percentile(x_all, 99)
         x_pad = (x_max - x_min) * 0.05
         y_min, y_max = np.percentile(y_all, 1), np.percentile(y_all, 99)
@@ -588,7 +662,7 @@ def plot_risk_heatmap(df):
 
         bins = [80, 40]
         h, x_edges, y_edges = np.histogram2d(
-            loc_high['X'].values, loc_high['Y'].values,
+            x_all, y_all, weights=weights,
             bins=bins, range=[[x_min - x_pad, x_max + x_pad], [y_min - y_pad, y_max + y_pad]]
         )
         h = h.T
@@ -598,8 +672,7 @@ def plot_risk_heatmap(df):
                             aspect='auto', extent=extent, origin='lower')
 
         # 车道线
-        loc_dir = LOCS[loc_name]
-        coeffs_path = os.path.join(loc_dir, 'lane_coeffs.csv')
+        coeffs_path = os.path.join(LOCS[loc_name], 'lane_coeffs.csv')
         if os.path.exists(coeffs_path):
             coeffs_df = pd.read_csv(coeffs_path)
             first_src = coeffs_df['where'].iloc[0]
@@ -611,22 +684,15 @@ def plot_risk_heatmap(df):
                 ax.plot(x_line, y_line, color='white', linewidth=2.5, alpha=0.9)
                 ax.plot(x_line, y_line, color='#2c3e50', linewidth=0.8, linestyle='--', alpha=0.6)
 
-        n_high = loc_high.groupby(['ID', 'Source']).ngroups
-        n_total = loc_all.groupby(['ID', 'Source']).ngroups
-        # ax.text(0.98, 0.02, f'高风险 {n_high}/{n_total} ({n_high/n_total*100:.1f}%)',
-        #         transform=ax.transAxes, fontsize=10, ha='right', va='bottom',
-        #         color='white', fontweight='bold',
-        #         bbox=dict(boxstyle='round', facecolor='#e74c3c', alpha=0.8))
         ax.set_xlim(x_min - x_pad, x_max + x_pad)
-        ax.set_ylim(y_max + y_pad, y_min - y_pad)  # y轴倒序
+        ax.set_ylim(y_max + y_pad, y_min - y_pad)
         ax.set_xlabel('X (m)', fontsize=10)
         ax.set_ylabel('Y (m)', fontsize=10)
-        ax.set_title(f'{loc_name} 高风险热力图', fontsize=13, fontweight='bold')
+        ax.set_title(f'{loc_name}', fontsize=13, fontweight='bold')
 
     if last_im is not None:
-        fig.colorbar(last_im, ax=axes, shrink=0.6, label='高风险点密度', pad=0.02)
-    fig.suptitle('各场景高风险位置分布热力图', fontsize=18, fontweight='bold')
-    # constrained_layout 已启用，无需调用 tight_layout
+        fig.colorbar(last_im, ax=axes, shrink=0.6, label='高风险帧密度', pad=0.02)
+    fig.suptitle('各场景风险位置分布热力图（变道 + 跟驰）', fontsize=18, fontweight='bold')
     fig.savefig(os.path.join(OUT_DIR, 'risk_heatmap.png'), dpi=150, bbox_inches='tight')
     plt.close(fig)
     print('  ✅ risk_heatmap.png')
