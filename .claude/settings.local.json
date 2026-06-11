@@ -26,7 +26,7 @@
       "Bash(start *)",
       "Bash(PYTHONIOENCODING=utf-8 python safety_dashboard.py)",
       "Bash(PYTHONIOENCODING=utf-8 python process_all_locations.py)",
-      "Bash(ls -lh e:/0little/location2/traffic_*.csv e:/0little/location3/traffic_*.csv e:/0little/location4/traffic_*.csv)",
+      "Bash(ls -lh e:/0little/location2/traffic_*.csv e:/0little/location3_part1/traffic_*.csv e:/0little/location4_part1/traffic_*.csv)",
       "Bash(PYTHONIOENCODING=utf-8 python count_vehicles.py)",
       "Bash(PYTHONIOENCODING=utf-8 python *)",
       "Bash(mv -f \"E:/0little/traffic_full/location5_left_tmp.csv\" \"E:/0little/traffic_full/location5_left.csv\")",
@@ -151,8 +151,22 @@
       "Skill(deep-research)",
       "Workflow(deep-research)",
       "WebFetch(domain:retractionwatch.com)",
-      "WebFetch(domain:www.researchinformation.info)"
-    ]
+      "WebFetch(domain:www.researchinformation.info)",
+      "WebFetch(domain:mirrors.tuna.tsinghua.edu.cn)",
+      "Bash(curl *)",
+      "Bash(rm -rf /d/ancaonda/install/*)",
+      "Bash(rm -rf /d/ancaonda/install/.*)",
+      "Bash(winget install *)",
+      "Bash(/d/anaconda/_conda.exe --version)",
+      "Bash(/d/anaconda/Scripts/conda.exe --version)",
+      "Bash(/d/ancaonda/install/envs/tf_gpu/Scripts/python *)",
+      "Bash(/d/ancaonda/install/envs/tf_gpu/Scripts/pip list *)",
+      "Bash(/d/ancaonda/install/envs/tf_gpu/Scripts/pip install *)",
+      "Bash(grep -v \"^WARNING\\\\|^I0000\\\\|^$\")",
+      "Bash(git stash *)",
+      "Bash(git pull *)"
+    ],
+    "defaultMode": "bypassPermissions"
   },
   "enableAllProjectMcpServers": true,
   "enabledMcpjsonServers": [
