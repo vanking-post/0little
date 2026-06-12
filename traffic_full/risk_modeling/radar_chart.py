@@ -60,16 +60,18 @@ def _plot_radar(values_dict, title, save_name, axis_labels, colors, out_dir,
     fig, ax = plt.subplots(figsize=(8, 8), subplot_kw=dict(polar=True))
     ax.set_theta_offset(np.pi / 2)
     ax.set_theta_direction(-1)
-    ax.set_xticks(angles[:-1])
-    ax.set_xticklabels(axis_labels, fontsize=10)
 
-    # 画刻度环（基于全局 rlim）
+    # 轴标签附带最大值标注
+    labeled_axis = [f'{a}\n(max={r:.1f})' for a, r in zip(axis_labels, axis_rlim)]
+    ax.set_xticks(angles[:-1])
+    ax.set_xticklabels(labeled_axis, fontsize=9)
+
+    # 刻度环：保留网格线，隐藏数字
     ax.set_rlabel_position(30)
     ax.set_rlim(0, global_rlim)
     ticks = np.linspace(0, global_rlim, 6)
     ax.set_yticks(ticks)
-    ax.set_yticklabels([f'{t:.1f}' for t in ticks],
-                       fontsize=8, color='gray')
+    ax.set_yticklabels([''] * len(ticks))
     ax.grid(True, alpha=0.3)
 
     # 在软上限处画一条虚线环（如果 global_rlim > 软上限）
