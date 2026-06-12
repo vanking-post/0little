@@ -40,6 +40,19 @@ def main():
     plot_confusion(rr, MODELS, '全量数据 (exp版) 混淆矩阵', '18_all_exp_confusion.png')
     print_summary(fm, rr, MODELS)
 
+    # 雷达图
+    try:
+        from radar_chart import (plot_cross_location_radar,
+                                 plot_random_split_radar,
+                                 plot_xgboost_per_location_radar)
+        stability = {name: 1 - min(np.std(fm[name]['f1']) / max(np.mean(fm[name]['f1']), 1e-6), 1.0)
+                     for name in MODELS if name in fm}
+        plot_cross_location_radar(fm, MODELS, '17_all_exp_cross_location_radar.png', out_dir=OUT_DIR)
+        plot_random_split_radar(rr, MODELS, '17_all_exp_random_split_radar.png', out_dir=OUT_DIR, stability_vals=stability)
+        plot_xgboost_per_location_radar(fm, LOC_KEYS, '17_all_exp_xgboost_radar.png', out_dir=OUT_DIR)
+    except Exception as e:
+        print(f'  [WARN] 雷达图生成失败: {e}')
+
 
 if __name__ == '__main__':
     main()

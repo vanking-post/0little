@@ -24,7 +24,7 @@ from sklearn.preprocessing import StandardScaler
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.neural_network import MLPClassifier
 from sklearn.metrics import (classification_report, confusion_matrix,
-                              accuracy_score, f1_score)
+                              accuracy_score, f1_score, recall_score)
 from matplotlib.patches import Patch
 import xgboost as xgb
 from imblearn.over_sampling import SMOTE
@@ -330,7 +330,9 @@ def evaluate_cross_location(df, models, loc_keys, loc_labels,
     print(f"  评估: {n_folds}-Fold 跨 Location 验证")
     print("=" * 70)
 
-    fold_metrics = {name: {'acc': [], 'f1': [], 'macro_f1': []} for name in models}
+    fold_metrics = {name: {'acc': [], 'f1': [], 'macro_f1': [],
+                           'high_risk_f1': [], 'high_risk_recall': [], 'test_ratio': []}
+                    for name in models}
 
     for fi, test_loc in enumerate(loc_keys):
         test_mask = df['location'] == test_loc
@@ -366,6 +368,9 @@ def evaluate_cross_location(df, models, loc_keys, loc_labels,
             fold_metrics[name]['acc'].append(accuracy_score(yt, yp))
             fold_metrics[name]['f1'].append(f1_score(yt, yp, average='weighted'))
             fold_metrics[name]['macro_f1'].append(f1_score(yt, yp, average='macro'))
+            fold_metrics[name]['high_risk_f1'].append(f1_score(yt, yp, labels=[0], average=None)[0])
+            fold_metrics[name]['high_risk_recall'].append(recall_score(yt, yp, labels=[0], average=None)[0])
+            fold_metrics[name]['test_ratio'].append(sum(test_mask) / sum(~test_mask))
             print(f"  {name:15s}: Acc={fold_metrics[name]['acc'][-1]:.3f}, "
                   f"F1={fold_metrics[name]['f1'][-1]:.3f}, MacroF1={fold_metrics[name]['macro_f1'][-1]:.3f}")
 
@@ -419,7 +424,10 @@ def evaluate_random_split(df, models, use_smote=False, X_ts=None, y_ts=None, see
         acc = accuracy_score(yr, ypr)
         f1 = f1_score(yr, ypr, average='weighted')
         mf1 = f1_score(yr, ypr, average='macro')
+        hf1 = f1_score(yr, ypr, labels=[0], average=None)[0]
+        hrc = recall_score(yr, ypr, labels=[0], average=None)[0]
         results[name] = {'acc': acc, 'f1': f1, 'macro_f1': mf1,
+                         'high_risk_f1': hf1, 'high_risk_recall': hrc,
                          'y_true': yr, 'y_pred': ypr, 'model': model}
         print(f"\n  {name}: Acc={acc:.3f}, F1={f1:.3f}, MacroF1={mf1:.3f}")
         rpt = classification_report(yr, ypr, target_names=['高风险', '中风险', '低风险'], zero_division=0)

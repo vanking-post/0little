@@ -37,6 +37,19 @@ def main():
     plot_confusion(rr, MODELS, '排除 Loc5 + SMOTE + Optuna 混淆矩阵', '16_no5_ST_confusion.png')
     print_summary(fm, rr, MODELS)
 
+    # 雷达图
+    try:
+        from radar_chart import (plot_cross_location_radar,
+                                 plot_random_split_radar,
+                                 plot_xgboost_per_location_radar)
+        stability = {name: 1 - min(np.std(fm[name]['f1']) / max(np.mean(fm[name]['f1']), 1e-6), 1.0)
+                     for name in MODELS if name in fm}
+        plot_cross_location_radar(fm, MODELS, '15_no5_ST_cross_location_radar.png', out_dir=OUT_DIR)
+        plot_random_split_radar(rr, MODELS, '15_no5_ST_random_split_radar.png', out_dir=OUT_DIR, stability_vals=stability)
+        plot_xgboost_per_location_radar(fm, LOC_KEYS, '15_no5_ST_xgboost_radar.png', out_dir=OUT_DIR)
+    except Exception as e:
+        print(f'  [WARN] 雷达图生成失败: {e}')
+
 
 if __name__ == '__main__':
     main()
