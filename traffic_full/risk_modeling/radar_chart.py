@@ -30,7 +30,7 @@ LOC_LABELS = {'location1': 'Loc1', 'location2': 'Loc2', 'location3': 'Loc3',
 AXIS_LABELS = ['Accuracy', 'Weighted\nF1', 'Macro\nF1', '1-CV\n(Stability)', 'High-Risk\nF1', 'High-Risk\nRecall']
 AXIS_LABELS_LOC = ['Accuracy', 'Weighted\nF1', 'Macro\nF1', '1-CV\n(Stability)', 'High-Risk\nF1', 'Test/Train\nRatio']
 # 单轴上限：非 1-CV 轴压缩到 0.8，1-CV（索引3）保持 1.0
-RLIM_PER_AXIS = [0.8, 0.8, 0.8, 1.0, 0.8, 0.8]
+RLIM_PER_AXIS = [0.9, 0.9, 0.9, 1.0, 0.9, 0.9]
 
 
 def _radar_factory(num_vars):
@@ -72,10 +72,11 @@ def _plot_radar(values_dict, title, save_name, axis_labels, colors, out_dir,
                        fontsize=8, color='gray')
     ax.grid(True, alpha=0.3)
 
-    # 在 0.8 处画一条虚线环（如果 global_rlim > 0.8）
-    if global_rlim > 0.81:
+    # 在软上限处画一条虚线环（如果 global_rlim > 软上限）
+    soft_max = min(axis_rlim)
+    if global_rlim > soft_max + 0.01:
         theta_line = np.linspace(0, 2 * np.pi, 200)
-        ax.plot(theta_line, [0.8] * 200, color='gray', linewidth=1,
+        ax.plot(theta_line, [soft_max] * 200, color='gray', linewidth=1,
                 linestyle='--', alpha=0.4)
 
     # 对每个模型的数值做单轴归一化
