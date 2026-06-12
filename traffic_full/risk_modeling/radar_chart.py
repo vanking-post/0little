@@ -15,6 +15,7 @@ import matplotlib
 matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 import numpy as np
+import os
 
 plt.rcParams['font.sans-serif'] = ['SimHei', 'Microsoft YaHei', 'DejaVu Sans']
 plt.rcParams['axes.unicode_minus'] = False
@@ -68,9 +69,10 @@ def _plot_radar(values_dict, title, save_name, axis_labels, colors, out_dir):
     ax.legend(loc='upper right', bbox_to_anchor=(1.2, 1.1), fontsize=10)
     fig.suptitle(title, fontsize=15, fontweight='bold', y=0.95)
     fig.tight_layout()
-    fig.savefig(out_dir, dpi=150, bbox_inches='tight')
+    save_path = os.path.join(out_dir, save_name)
+    fig.savefig(save_path, dpi=150, bbox_inches='tight')
     plt.close(fig)
-    print(f'  [OK] {save_name}')
+    print(f'  [OK] {save_path}')
     return True
 
 
