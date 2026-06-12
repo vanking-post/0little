@@ -22,8 +22,8 @@ plt.rcParams['axes.unicode_minus'] = False
 
 MODEL_COLORS = {'XGBoost': '#e74c3c', 'RandomForest': '#3498db',
                 'MLP': '#2ecc71', 'LSTM': '#f39c12'}
-LOC_COLORS = {'location1': '#3498db', 'location2': '#2ecc71',
-              'location3': '#f39c12', 'location4': '#9b59b6', 'location5': '#e74c3c'}
+LOC_COLORS = {'Loc1': '#3498db', 'Loc2': '#2ecc71',
+              'Loc3': '#f39c12', 'Loc4': '#9b59b6', 'Loc5': '#e74c3c'}
 LOC_LABELS = {'location1': 'Loc1', 'location2': 'Loc2', 'location3': 'Loc3',
               'location4': 'Loc4', 'location5': 'Loc5'}
 
