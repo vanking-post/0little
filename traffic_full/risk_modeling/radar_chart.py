@@ -29,6 +29,8 @@ LOC_LABELS = {'location1': 'Loc1', 'location2': 'Loc2', 'location3': 'Loc3',
 
 AXIS_LABELS = ['Accuracy', 'Weighted\nF1', 'Macro\nF1', '1-CV\n(Stability)', 'High-Risk\nF1', 'High-Risk\nRecall']
 AXIS_LABELS_LOC = ['Accuracy', 'Weighted\nF1', 'Macro\nF1', '1-CV\n(Stability)', 'High-Risk\nF1', 'Test/Train\nRatio']
+# 单轴上限：非 1-CV 轴压缩到 0.8，1-CV（索引3）保持 1.0
+RLIM_PER_AXIS = [0.8, 0.8, 0.8, 1.0, 0.8, 0.8]
 
 
 def _radar_factory(num_vars):
@@ -38,13 +40,22 @@ def _radar_factory(num_vars):
     return angles
 
 
-def _plot_radar(values_dict, title, save_name, axis_labels, colors, out_dir):
+def _plot_radar(values_dict, title, save_name, axis_labels, colors, out_dir,
+                axis_rlim=None):
     """通用雷达图绘制函数
 
     values_dict: {name: [v1, v2, v3, v4, v5, v6]}  每个条目一条线
+    axis_rlim: [max1, max2, ..., maxN]  每轴独立上限，None 表示与全局 rlim 一致
+             例: [0.8, 0.8, 0.8, 1.0, 0.8, 0.8]  让 1-CV 占更大范围
     """
     N = len(axis_labels)
     angles = _radar_factory(N)
+
+    # 如果没有指定单轴上限，统一默认值
+    if axis_rlim is None:
+        axis_rlim = [1.0] * N
+
+    global_rlim = max(axis_rlim)  # 全局径向轴以最宽值为准
 
     fig, ax = plt.subplots(figsize=(8, 8), subplot_kw=dict(polar=True))
     ax.set_theta_offset(np.pi / 2)
@@ -52,19 +63,29 @@ def _plot_radar(values_dict, title, save_name, axis_labels, colors, out_dir):
     ax.set_xticks(angles[:-1])
     ax.set_xticklabels(axis_labels, fontsize=10)
 
-    # 画刻度环
+    # 画刻度环（基于全局 rlim）
     ax.set_rlabel_position(30)
-    ax.set_rlim(0, 1)
-    ax.set_yticks([0.2, 0.4, 0.6, 0.8, 1.0])
-    ax.set_yticklabels(['0.2', '0.4', '0.6', '0.8', '1.0'],
+    ax.set_rlim(0, global_rlim)
+    ticks = np.linspace(0, global_rlim, 6)
+    ax.set_yticks(ticks)
+    ax.set_yticklabels([f'{t:.1f}' for t in ticks],
                        fontsize=8, color='gray')
     ax.grid(True, alpha=0.3)
 
+    # 在 0.8 处画一条虚线环（如果 global_rlim > 0.8）
+    if global_rlim > 0.81:
+        theta_line = np.linspace(0, 2 * np.pi, 200)
+        ax.plot(theta_line, [0.8] * 200, color='gray', linewidth=1,
+                linestyle='--', alpha=0.4)
+
+    # 对每个模型的数值做单轴归一化
     for i, (name, vals) in enumerate(values_dict.items()):
         values = vals + vals[:1]
+        # 归一化到全局尺度
+        norm_vals = np.array([v / r if r > 0 else v for v, r in zip(values, axis_rlim + axis_rlim[:1])])
         color = colors.get(name, '#333333')
-        ax.plot(angles, values, 'o-', linewidth=2, color=color, label=name, alpha=0.85)
-        ax.fill(angles, values, alpha=0.08, color=color)
+        ax.plot(angles, norm_vals, 'o-', linewidth=2, color=color, label=name, alpha=0.85)
+        ax.fill(angles, norm_vals, alpha=0.08, color=color)
 
     ax.legend(loc='upper right', bbox_to_anchor=(1.2, 1.1), fontsize=10)
     fig.suptitle(title, fontsize=15, fontweight='bold', y=0.95)
@@ -96,7 +117,8 @@ def plot_cross_location_radar(fold_metrics, models, save_name, out_dir='.'):
             np.mean(d['high_risk_recall']),
         ]
     return _plot_radar(values_dict, '跨区域验证 — 模型性能雷达图',
-                       save_name, AXIS_LABELS, MODEL_COLORS, out_dir)
+                       save_name, AXIS_LABELS, MODEL_COLORS, out_dir,
+                       axis_rlim=RLIM_PER_AXIS)
 
 
 def plot_random_split_radar(random_results, models, save_name, out_dir='.', stability_vals=None):
@@ -119,7 +141,8 @@ def plot_random_split_radar(random_results, models, save_name, out_dir='.', stab
             d.get('high_risk_recall', 0),
         ]
     return _plot_radar(values_dict, '随机划分 — 模型性能雷达图',
-                       save_name, AXIS_LABELS, MODEL_COLORS, out_dir)
+                       save_name, AXIS_LABELS, MODEL_COLORS, out_dir,
+                       axis_rlim=RLIM_PER_AXIS)
 
 
 def plot_xgboost_per_location_radar(fold_metrics, loc_keys, save_name, out_dir='.'):
@@ -148,4 +171,5 @@ def plot_xgboost_per_location_radar(fold_metrics, loc_keys, save_name, out_dir='
             xgb['test_ratio'][i],
         ]
     return _plot_radar(values_dict, 'XGBoost — 各场景雷达图',
-                       save_name, AXIS_LABELS_LOC, LOC_COLORS, out_dir)
+                       save_name, AXIS_LABELS_LOC, LOC_COLORS, out_dir,
+                       axis_rlim=RLIM_PER_AXIS)
