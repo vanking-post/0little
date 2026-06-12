@@ -30,7 +30,7 @@ LOC_LABELS = {'location1': 'Loc1', 'location2': 'Loc2', 'location3': 'Loc3',
 AXIS_LABELS = ['Accuracy', 'Weighted\nF1', 'Macro\nF1', '1-CV\n(Stability)', 'High-Risk\nF1', 'High-Risk\nRecall']
 AXIS_LABELS_LOC = ['Accuracy', 'Weighted\nF1', 'Macro\nF1', '1-CV\n(Stability)', 'High-Risk\nF1', 'Test/Train\nRatio']
 # 单轴上限：非 1-CV 轴压缩到 0.8，1-CV（索引3）保持 1.0
-RLIM_PER_AXIS = [0.9, 0.9, 0.9, 1.0, 0.9, 0.9]
+RLIM_PER_AXIS = [0.85, 0.85, 0.85, 1.0, 0.85, 0.85]
 
 
 def _radar_factory(num_vars):
@@ -66,10 +66,11 @@ def _plot_radar(values_dict, title, save_name, axis_labels, colors, out_dir,
     ax.set_xticks(angles[:-1])
     ax.set_xticklabels(labeled_axis, fontsize=9)
 
-    # 刻度环：范围 0.5~1.0，保留网格线，隐藏数字
+    # 刻度环：保留网格线，隐藏数字
     ax.set_rlabel_position(30)
-    ax.set_rlim(0.5, max(global_rlim, 1.0))
-    ticks = np.linspace(0.5, max(global_rlim, 1.0), 6)
+    rlim_bottom = 0.3
+    ax.set_rlim(rlim_bottom, max(global_rlim, 1.0))
+    ticks = np.linspace(rlim_bottom, max(global_rlim, 1.0), 6)
     ax.set_yticks(ticks)
     ax.set_yticklabels([''] * len(ticks))
     ax.grid(True, alpha=0.3)
@@ -79,7 +80,7 @@ def _plot_radar(values_dict, title, save_name, axis_labels, colors, out_dir,
         values = vals + vals[:1]
         # 归一化到全局尺度
         norm_vals = np.array([v / r if r > 0 else v for v, r in zip(values, axis_rlim + axis_rlim[:1])])
-        norm_vals = np.clip(norm_vals, 0.5, 1.0)  # 防截断
+        norm_vals = np.clip(norm_vals, rlim_bottom, 1.0)  # 防截断
         color = colors.get(name, '#333333')
         ax.plot(angles, norm_vals, 'o-', linewidth=2, color=color, label=name, alpha=0.85)
         ax.fill(angles, norm_vals, alpha=0.08, color=color)
@@ -165,7 +166,7 @@ def plot_xgboost_per_location_radar(fold_metrics, loc_keys, save_name, out_dir='
             xgb['macro_f1'][i],
             1 - min(cv, 1.0),  # 使用全局 CV（跨所有 location 的稳定性）
             xgb['high_risk_f1'][i],
-            xgb['test_ratio'][i],
+            1 - xgb['test_ratio'][i],
         ]
     return _plot_radar(values_dict, 'XGBoost — 各场景雷达图',
                        save_name, AXIS_LABELS_LOC, LOC_COLORS, out_dir,
