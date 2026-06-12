@@ -74,12 +74,6 @@ def _plot_radar(values_dict, title, save_name, axis_labels, colors, out_dir,
     ax.set_yticklabels([''] * len(ticks))
     ax.grid(True, alpha=0.3)
 
-    # 在软上限处画一条虚线环
-    soft_max = min(axis_rlim)
-    theta_line = np.linspace(0, 2 * np.pi, 200)
-    ax.plot(theta_line, [soft_max] * 200, color='gray', linewidth=1,
-            linestyle='--', alpha=0.4)
-
     # 对每个模型的数值做单轴归一化
     for i, (name, vals) in enumerate(values_dict.items()):
         values = vals + vals[:1]
