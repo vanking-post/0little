@@ -66,26 +66,26 @@ def _plot_radar(values_dict, title, save_name, axis_labels, colors, out_dir,
     ax.set_xticks(angles[:-1])
     ax.set_xticklabels(labeled_axis, fontsize=9)
 
-    # 刻度环：保留网格线，隐藏数字
+    # 刻度环：范围 0.5~1.0，保留网格线，隐藏数字
     ax.set_rlabel_position(30)
-    ax.set_rlim(0, global_rlim)
-    ticks = np.linspace(0, global_rlim, 6)
+    ax.set_rlim(0.5, max(global_rlim, 1.0))
+    ticks = np.linspace(0.5, max(global_rlim, 1.0), 6)
     ax.set_yticks(ticks)
     ax.set_yticklabels([''] * len(ticks))
     ax.grid(True, alpha=0.3)
 
-    # 在软上限处画一条虚线环（如果 global_rlim > 软上限）
+    # 在软上限处画一条虚线环
     soft_max = min(axis_rlim)
-    if global_rlim > soft_max + 0.01:
-        theta_line = np.linspace(0, 2 * np.pi, 200)
-        ax.plot(theta_line, [soft_max] * 200, color='gray', linewidth=1,
-                linestyle='--', alpha=0.4)
+    theta_line = np.linspace(0, 2 * np.pi, 200)
+    ax.plot(theta_line, [soft_max] * 200, color='gray', linewidth=1,
+            linestyle='--', alpha=0.4)
 
     # 对每个模型的数值做单轴归一化
     for i, (name, vals) in enumerate(values_dict.items()):
         values = vals + vals[:1]
         # 归一化到全局尺度
         norm_vals = np.array([v / r if r > 0 else v for v, r in zip(values, axis_rlim + axis_rlim[:1])])
+        norm_vals = np.clip(norm_vals, 0.5, 1.0)  # 防截断
         color = colors.get(name, '#333333')
         ax.plot(angles, norm_vals, 'o-', linewidth=2, color=color, label=name, alpha=0.85)
         ax.fill(angles, norm_vals, alpha=0.08, color=color)
