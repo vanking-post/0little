@@ -17,7 +17,7 @@ LOCS = {
 }
 LOC_KEYS = ['location1', 'location2', 'location3', 'location4', 'location5']
 LOC_LABELS = ['Loc1', 'Loc2', 'Loc3', 'Loc4', 'Loc5']
-MODELS = dict(OPTUNA_MODELS)
+MODELS = {**OPTUNA_MODELS, **LSTM_MODEL}
 
 
 def main():
@@ -28,8 +28,15 @@ def main():
     print(f"  样本: {len(df)} 辆, 特征: {len(feature_cols)} 维, "
           f"标签: 高风险{n_high} 中风险{n_mid} 低风险{n_low}")
 
-    fm = evaluate_cross_location(df, MODELS, LOC_KEYS, LOC_LABELS, use_smote=True)
-    rr = evaluate_random_split(df, MODELS, use_smote=True)
+    X_ts, y_ts, meta_ts = (None, None, None)
+    if LSTM_MODEL:
+        X_ts, y_ts, meta_ts = load_time_series(LOCS, LOC_KEYS, sample_len=75)
+        print(f"  LSTM 输入: {X_ts.shape}")
+
+    fm = evaluate_cross_location(df, MODELS, LOC_KEYS, LOC_LABELS, use_smote=True,
+                                 X_ts=X_ts, y_ts=y_ts, meta_ts=meta_ts)
+    rr = evaluate_random_split(df, MODELS, use_smote=True,
+                               X_ts=X_ts, y_ts=y_ts)
     run_shap_analysis(rr, MODELS, 'shap_exp_ST')
     plot_comparison(fm, rr, MODELS, 'exp 评分 + SMOTE + Optuna 模型性能对比', '09_exp_ST_comparison.png')
     plot_confusion(rr, MODELS, 'exp 评分 + SMOTE + Optuna 混淆矩阵 (随机划分)', '10_exp_ST_confusion.png')
