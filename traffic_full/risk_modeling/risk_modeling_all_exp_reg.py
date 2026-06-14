@@ -170,6 +170,52 @@ def main():
     fm = evaluate_cross_location_reg(df, LOC_KEYS, LOC_LABELS)
     rr = evaluate_random_split_reg(df)
 
+    # ── 保存模型参数与结果报告 ──
+    try:
+        report_path = os.path.join(OUT_DIR, '16_all_exp_reg_model_report.txt')
+        with open(report_path, 'w', encoding='utf-8') as f:
+            f.write("=" * 70 + "\n")
+            f.write("  全量数据 (exp 回归版) — 模型训练报告\n")
+            f.write("=" * 70 + "\n\n")
+            f.write(f"样本: {len(df)} 辆, 特征: {len(feature_cols)} 维\n")
+            f.write(f"risk_score 范围: {df['risk_score'].min():.4f} ~ {df['risk_score'].max():.4f}\n\n")
+
+            f.write("-" * 70 + "\n")
+            f.write("  各模型参数\n")
+            f.write("-" * 70 + "\n")
+            for name, fn_desc in [('XGBoost', 'XGBRegressor(n_estimators=200, max_depth=6, learning_rate=0.1)'),
+                                  ('RandomForest', 'RFRegressor(n_estimators=200, max_depth=10)'),
+                                  ('MLP', 'MLPRegressor(hidden_layer_sizes=(64,32), max_iter=500)')]:
+                f.write(f"\n{name}: {fn_desc}\n")
+
+            f.write("\n" + "-" * 70 + "\n")
+            f.write("  跨 Location 验证\n")
+            f.write("-" * 70 + "\n")
+            for name in REGRESSORS:
+                if name not in fm:
+                    continue
+                d = fm[name]
+                f.write(f"\n{name}:\n")
+                for fi, loc in enumerate(LOC_KEYS):
+                    f.write(f"  Fold {fi+1} ({loc}): MAE={d['mae'][fi]:.4f}  R²={d['r2'][fi]:.4f}\n")
+                f.write(f"  均值: MAE={np.mean(d['mae']):.4f}±{np.std(d['mae']):.4f}, "
+                        f"R²={np.mean(d['r2']):.4f}±{np.std(d['r2']):.4f}\n")
+
+            f.write("\n" + "-" * 70 + "\n")
+            f.write("  随机 80/20 划分\n")
+            f.write("-" * 70 + "\n")
+            for name in REGRESSORS:
+                if name not in rr:
+                    continue
+                d = rr[name]
+                f.write(f"\n{name}: MAE={d['mae']:.4f}  R²={d['r2']:.4f}\n")
+
+            best = min(rr.items(), key=lambda x: x[1]['mae'])
+            f.write(f"\n最佳模型: {best[0]} (MAE={best[1]['mae']:.4f}, R²={best[1]['r2']:.4f})\n")
+        print(f'\n  [OK] 模型报告: {report_path}')
+    except Exception as e:
+        print(f'  [WARN] 报告保存失败: {e}')
+
 
 if __name__ == '__main__':
     main()
