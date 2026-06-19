@@ -9,6 +9,11 @@
 - 评估: 5-Fold 跨 Location + 随机 80/20
 """
 from risk_modeling_utils_exp import *
+import risk_modeling_utils_exp as _ut
+SCRIPT_DIR = os.path.join(_ut.OUT_DIR, 'risk_modeling_all_exp')
+os.makedirs(SCRIPT_DIR, exist_ok=True)
+_ut.OUT_DIR = SCRIPT_DIR
+OUT_DIR = SCRIPT_DIR
 
 LOCS = {
     'location1': 'E:/0little/location1', 'location2': 'E:/0little/location2',
@@ -36,8 +41,8 @@ def main():
     fm = evaluate_cross_location(df, MODELS, LOC_KEYS, LOC_LABELS, X_ts=X_ts, y_ts=y_ts, meta_ts=meta_ts)
     rr = evaluate_random_split(df, MODELS, X_ts=X_ts, y_ts=y_ts)
     run_shap_analysis(rr, MODELS, 'shap_all_exp')
-    plot_comparison(fm, rr, MODELS, '全量数据 (exp版) 模型性能对比', '17_all_exp_comparison.png')
-    plot_confusion(rr, MODELS, '全量数据 (exp版) 混淆矩阵', '18_all_exp_confusion.png')
+    plot_comparison(fm, rr, MODELS, 'All Data (exp) Model Performance', '17_all_exp_comparison.png')
+    plot_confusion(rr, MODELS, 'All Data (exp) Confusion Matrix', '18_all_exp_confusion.png')
     print_summary(fm, rr, MODELS)
 
     # 雷达图

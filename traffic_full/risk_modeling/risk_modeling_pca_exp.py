@@ -9,6 +9,11 @@
 - 定位: 对比 exp 评分体系下时序降维对 LSTM 的影响
 """
 from risk_modeling_utils_exp import *
+import risk_modeling_utils_exp as _ut
+SCRIPT_DIR = os.path.join(_ut.OUT_DIR, 'risk_modeling_pca_exp')
+os.makedirs(SCRIPT_DIR, exist_ok=True)
+_ut.OUT_DIR = SCRIPT_DIR
+OUT_DIR = SCRIPT_DIR
 from sklearn.decomposition import PCA
 
 LOCS = {
@@ -55,17 +60,17 @@ def load_pca_time_series(locs, loc_keys, sample_len=75):
     x = range(1, n_comp + 1)
 
     # 左轴：单个方差柱状图
-    bars = ax1.bar(x, pca.explained_variance_ratio_, alpha=0.7, label='单个方差', color='#3498db')
-    ax1.set_xlabel('主成分', fontsize=12)
-    ax1.set_ylabel('单个方差占比', fontsize=12, color='#3498db')
+    bars = ax1.bar(x, pca.explained_variance_ratio_, alpha=0.7, label='Individual', color='#3498db')
+    ax1.set_xlabel('Principal Component', fontsize=12)
+    ax1.set_ylabel('Individual Variance', fontsize=12, color='#3498db')
     ax1.tick_params(axis='y', labelcolor='#3498db')
 
     # 右轴：累积方差光滑曲线
     ax2 = ax1.twinx()
     ax2.plot(x, cum_var, color='#e74c3c', linewidth=2.5, marker='o', markersize=4,
-             label='累计方差', alpha=0.9)
+             label='Cumulative', alpha=0.9)
     ax2.axhline(y=0.95, color='gray', linestyle='--', alpha=0.5, linewidth=1)
-    ax2.set_ylabel('累计方差占比', fontsize=12, color='#e74c3c')
+    ax2.set_ylabel('Cumulative Variance', fontsize=12, color='#e74c3c')
     ax2.tick_params(axis='y', labelcolor='#e74c3c')
     ax2.set_ylim(0, 1.05)
 
@@ -74,7 +79,7 @@ def load_pca_time_series(locs, loc_keys, sample_len=75):
     lines2, labels2 = ax2.get_legend_handles_labels()
     ax1.legend(lines1 + lines2, labels1 + labels2, fontsize=10, loc='center right')
 
-    ax1.set_title(f'PCA 方差累计 (exp版, {len(TS_FEATURES)}→{n_comp}, {cum_var[-1]:.1%})',
+    ax1.set_title(f'PCA Variance (exp, {len(TS_FEATURES)}→{n_comp}, {cum_var[-1]:.1%})',
                   fontsize=14, fontweight='bold')
     fig.tight_layout()
     fig.savefig(os.path.join(OUT_DIR, 'pca_exp_variance.png'), dpi=120, bbox_inches='tight')
@@ -106,8 +111,8 @@ def main():
     fm = evaluate_cross_location(df, MODELS, LOC_KEYS, LOC_LABELS, X_ts=X_ts, y_ts=y_ts, meta_ts=meta_ts)
     rr = evaluate_random_split(df, MODELS, X_ts=X_ts, y_ts=y_ts)
     run_shap_analysis(rr, MODELS, 'shap_pca_exp')
-    plot_comparison(fm, rr, MODELS, 'exp 版 PCA-LSTM vs 聚合模型', 'pca_exp_model_comparison.png')
-    plot_confusion(rr, MODELS, 'exp 版 PCA-LSTM 混淆矩阵 (随机划分)', 'pca_exp_confusion.png')
+    plot_comparison(fm, rr, MODELS, 'EXP PCA-LSTM vs Aggregated Models', 'pca_exp_model_comparison.png')
+    plot_confusion(rr, MODELS, 'EXP PCA-LSTM Confusion Matrix (Random Split)', 'pca_exp_confusion.png')
     print_summary(fm, rr, MODELS)
 
     # 雷达图

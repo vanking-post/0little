@@ -30,7 +30,7 @@ LOC_LABELS = {'location1': 'Loc1', 'location2': 'Loc2', 'location3': 'Loc3',
 AXIS_LABELS = ['Accuracy', 'Weighted\nF1', 'Macro\nF1', '1-CV\n(Stability)', 'High-Risk\nF1', 'High-Risk\nRecall']
 AXIS_LABELS_LOC = ['Accuracy', 'Weighted\nF1', 'Macro\nF1', '1-CV\n(Stability)', 'High-Risk\nF1', 'Test/Train\nRatio']
 # 单轴上限：非 1-CV 轴压缩到 0.8，1-CV（索引3）保持 1.0
-RLIM_PER_AXIS = [0.85, 0.85, 0.85, 1.0, 0.85, 0.85]
+RLIM_PER_AXIS = [0.85, 0.85, 0.85, 1.0, 0.8, 0.8]
 
 
 def _radar_factory(num_vars):
@@ -64,7 +64,7 @@ def _plot_radar(values_dict, title, save_name, axis_labels, colors, out_dir,
     # 轴标签附带最大值标注
     labeled_axis = [f'{a}\n(max={r:.1f})' for a, r in zip(axis_labels, axis_rlim)]
     ax.set_xticks(angles[:-1])
-    ax.set_xticklabels(labeled_axis, fontsize=9)
+    ax.set_xticklabels(labeled_axis, fontsize=10)
 
     # 刻度环：保留网格线，隐藏数字
     ax.set_rlabel_position(30)
@@ -85,8 +85,8 @@ def _plot_radar(values_dict, title, save_name, axis_labels, colors, out_dir,
         ax.plot(angles, norm_vals, 'o-', linewidth=2, color=color, label=name, alpha=0.85)
         ax.fill(angles, norm_vals, alpha=0.08, color=color)
 
-    ax.legend(loc='upper right', bbox_to_anchor=(1.2, 1.1), fontsize=10)
-    fig.suptitle(title, fontsize=15, fontweight='bold', y=0.95)
+    ax.legend(loc='best', fontsize=10)
+    # fig.suptitle(title, fontsize=15, fontweight='bold', y=0.95)
     fig.tight_layout()
     save_path = os.path.join(out_dir, save_name)
     fig.savefig(save_path, dpi=150, bbox_inches='tight')

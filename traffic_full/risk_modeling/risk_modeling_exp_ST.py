@@ -9,6 +9,11 @@
 - 评估: 5-Fold 跨 Location + 随机 80/20
 """
 from risk_modeling_utils_exp import *
+import risk_modeling_utils_exp as _ut
+SCRIPT_DIR = os.path.join(_ut.OUT_DIR, 'risk_modeling_exp_ST')
+os.makedirs(SCRIPT_DIR, exist_ok=True)
+_ut.OUT_DIR = SCRIPT_DIR
+OUT_DIR = SCRIPT_DIR
 
 LOCS = {
     'location1': 'E:/0little/location1', 'location2': 'E:/0little/location2',
@@ -38,8 +43,8 @@ def main():
     rr = evaluate_random_split(df, MODELS, use_smote=True,
                                X_ts=X_ts, y_ts=y_ts)
     run_shap_analysis(rr, MODELS, 'shap_exp_ST')
-    plot_comparison(fm, rr, MODELS, 'exp 评分 + SMOTE + Optuna 模型性能对比', '09_exp_ST_comparison.png')
-    plot_confusion(rr, MODELS, 'exp 评分 + SMOTE + Optuna 混淆矩阵 (随机划分)', '10_exp_ST_confusion.png')
+    plot_comparison(fm, rr, MODELS, 'Exp Score + SMOTE + Optuna Model Performance', '09_exp_ST_comparison.png')
+    plot_confusion(rr, MODELS, 'Exp Score + SMOTE + Optuna Confusion Matrix (Random Split)', '10_exp_ST_confusion.png')
     print_summary(fm, rr, MODELS)
 
     # 雷达图

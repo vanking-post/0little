@@ -25,6 +25,12 @@ from sklearn.metrics import mean_absolute_error, r2_score
 import xgboost as xgb
 
 from risk_modeling_utils_exp import load_and_engineer, get_feature_cols, SEED, OUT_DIR
+import risk_modeling_utils_exp as _ut
+import os
+SCRIPT_DIR = os.path.join(_ut.OUT_DIR, 'risk_modeling_all_exp_reg')
+os.makedirs(SCRIPT_DIR, exist_ok=True)
+_ut.OUT_DIR = SCRIPT_DIR
+OUT_DIR = SCRIPT_DIR
 
 LOCS = {
     'location1': 'E:/0little/location1', 'location2': 'E:/0little/location2',

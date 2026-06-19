@@ -10,12 +10,18 @@
 import matplotlib
 matplotlib.use('Agg')
 import matplotlib.pyplot as plt
+import matplotlib.font_manager as fm
 import pandas as pd
 import numpy as np
 import os
 import sys
 import warnings
 warnings.filterwarnings('ignore')
+
+# 设置字体（确保 SHAP 图表特殊字符正确渲染）
+plt.rcParams['font.sans-serif'] = ['DejaVu Sans', 'Arial', 'sans-serif']
+plt.rcParams['font.family'] = 'sans-serif'
+plt.rcParams['axes.unicode_minus'] = False
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
@@ -459,7 +465,7 @@ def plot_comparison(fold_metrics, random_results, models, title, save_name):
                color=colors[i], alpha=0.85, capsize=5, label=name)
     ax.set_xticks(x); ax.set_xticklabels(names, fontsize=11)
     ax.set_ylabel('Weighted F1', fontsize=12)
-    ax.set_title('跨 Location Weighted F1', fontsize=14, fontweight='bold')
+    ax.set_title('Cross-Location Weighted F1', fontsize=14, fontweight='bold')
     ax.set_ylim(0, 1); ax.axhline(y=1/3, color='gray', linewidth=0.8, linestyle='--', alpha=0.5)
     ax.legend(fontsize=9)
 
@@ -481,7 +487,7 @@ def plot_comparison(fold_metrics, random_results, models, title, save_name):
         ax.bar(i + 3*w/2, random_results[name]['macro_f1'], w, color=colors[i], alpha=0.15, hatch='//')
     ax.set_xticks(x); ax.set_xticklabels(names, fontsize=11)
     ax.set_ylabel('Score', fontsize=12)
-    ax.set_title('随机 80/20 划分', fontsize=14, fontweight='bold')
+    ax.set_title('Random 80/20 Split', fontsize=14, fontweight='bold')
     ax.set_ylim(0, 1)
     ax.legend([Patch(color='gray', alpha=0.85), Patch(color='gray', alpha=0.35),
                Patch(color='gray', alpha=0.15, hatch='//')],
@@ -498,7 +504,7 @@ def plot_confusion(random_results, models, title, save_name):
     fig, axes = plt.subplots(1, n, figsize=(6 * n, 5.5))
     if n == 1:
         axes = [axes]
-    labels = ['高风险', '中风险', '低风险']
+    labels = ['High Risk', 'Medium Risk', 'Low Risk']
 
     for i, name in enumerate(names):
         res = random_results[name]
@@ -513,7 +519,7 @@ def plot_confusion(random_results, models, title, save_name):
                 ax.text(c, r, cm[r, c], ha='center', va='center',
                         fontsize=14, fontweight='bold',
                         color='white' if cm[r, c] > cm.max() / 2 else 'black')
-        ax.set_xlabel('预测', fontsize=11); ax.set_ylabel('真实', fontsize=11)
+        ax.set_xlabel('Predicted', fontsize=11); ax.set_ylabel('Actual', fontsize=11)
         ax.set_title(f'{name} (F1={res["f1"]:.3f})', fontsize=12, fontweight='bold')
         plt.colorbar(im, ax=ax, shrink=0.8)
 
@@ -559,6 +565,7 @@ def shap_analysis(model, X, feature_names, model_name, save_prefix='shap', max_d
             xgb.DMatrix(X), pred_contribs=True)  # (N, n_classes, n_features+1)
         # 去掉最后一个 bias 列, 转置为 (N, F, C)
         shap_3d = np.array(shap_values)[:, :, :-1].transpose(0, 2, 1)  # (N, F, C)
+        base_vals = np.array(shap_values)[:, :, -1]  # (N, C): baseline per sample per class
     else:
         # RandomForest: shap.TreeExplainer 工作正常
         explainer = shap.TreeExplainer(model)
@@ -570,9 +577,17 @@ def shap_analysis(model, X, feature_names, model_name, save_prefix='shap', max_d
             shap_3d = shap_vals
         else:
             shap_3d = shap_vals[:, :, np.newaxis]  # 2D → (N, F, 1)
+        # baseline: expected_value 可能是 list/ndarray/scalar
+        ev = explainer.expected_value
+        if isinstance(ev, (list, tuple)):
+            base_vals = np.array([ev])  # (1, C)
+        elif isinstance(ev, np.ndarray):
+            base_vals = ev if ev.ndim >= 2 else ev[np.newaxis, :]  # (1, C) or fallback
+        else:
+            base_vals = np.array([[ev]])  # (1, 1)
 
     n_classes = shap_3d.shape[2]
-    class_names = ['高风险', '中风险', '低风险']
+    class_names = ['High Risk', 'Medium Risk', 'Low Risk']
     class_colors = ['#e74c3c', '#f39c12', '#3498db']
 
     # ── 自定义堆叠柱状图 (三分类) ──
@@ -596,7 +611,7 @@ def shap_analysis(model, X, feature_names, model_name, save_prefix='shap', max_d
     ax.set_yticks(y_pos)
     ax.set_yticklabels(feat_labels, fontsize=10)
     ax.set_xlabel('mean |SHAP value|', fontsize=12)
-    ax.set_title(f'{model_name} — 特征重要性 (按风险等级着色)', fontsize=14, fontweight='bold')
+    ax.set_title(f'{model_name} — Feature Importance by Risk Level', fontsize=14, fontweight='bold')
     ax.legend(fontsize=10, loc='lower right')
     ax.invert_yaxis()
     fig.tight_layout()
@@ -604,6 +619,33 @@ def shap_analysis(model, X, feature_names, model_name, save_prefix='shap', max_d
     fig.savefig(bar_path, dpi=120, bbox_inches='tight')
     plt.close(fig)
     print(f'  [OK] {os.path.basename(bar_path)}')
+
+    # ── SHAP 热力图 (三分类特征重要性) ──
+    n_show_heat = min(20, len(sort_idx))
+    sort_heat = sort_idx[:n_show_heat]
+    heat_data = mean_abs[sort_heat]
+    feat_heat = [feature_names[i] for i in sort_heat]
+
+    fig, ax = plt.subplots(figsize=(10, max(4, n_show_heat * 0.42)))
+    im = ax.imshow(heat_data, cmap='YlOrRd', aspect='auto')
+    for r in range(n_show_heat):
+        for c in range(min(n_classes, 3)):
+            val = heat_data[r, c]
+            ax.text(c, r, f'{val:.3f}', ha='center', va='center',
+                    fontsize=8, fontweight='bold',
+                    color='white' if val > heat_data.max() / 2 else 'black')
+    ax.set_xticks(range(min(n_classes, 3)))
+    ax.set_xticklabels(class_names[:min(n_classes, 3)], fontsize=11)
+    ax.set_yticks(range(n_show_heat))
+    ax.set_yticklabels(feat_heat, fontsize=10)
+    ax.set_xlabel('Risk Level', fontsize=12)
+    ax.set_title(f'{model_name} — SHAP Feature Importance Heatmap', fontsize=14, fontweight='bold')
+    fig.colorbar(im, ax=ax, shrink=0.8, label='mean |SHAP value|')
+    fig.tight_layout()
+    heat_path = os.path.join(OUT_DIR, f'{save_prefix}_{model_name}_importance_heatmap.png')
+    fig.savefig(heat_path, dpi=120, bbox_inches='tight')
+    plt.close(fig)
+    print(f'  [OK] {os.path.basename(heat_path)}')
 
     # ── Beeswarm 图: 高风险类 (class 0) ──
     if n_classes >= 1:
@@ -614,12 +656,60 @@ def shap_analysis(model, X, feature_names, model_name, save_prefix='shap', max_d
     plt.figure(figsize=(12, 8))
     shap.summary_plot(shap_high, X, feature_names=feature_names,
                        max_display=max_display, show=False)
-    plt.title(f'{model_name} — SHAP Summary (高风险)', fontsize=14, fontweight='bold')
+    plt.title(f'{model_name} — SHAP Summary (High Risk)', fontsize=14, fontweight='bold')
     plt.tight_layout()
     bee_path = os.path.join(OUT_DIR, f'{save_prefix}_{model_name}_beeswarm.png')
     plt.savefig(bee_path, dpi=120, bbox_inches='tight')
     plt.close()
     print(f'  [OK] {os.path.basename(bee_path)}')
+
+    # ── Waterfall 图: 高风险类典型样本 ──
+    shap_high = shap_3d[:, :, 0]
+    shap_sum = shap_high.sum(axis=1)
+    for label, idx in [('HighRisk', np.argmax(shap_sum)), ('LowRisk', np.argmin(shap_sum))]:
+        try:
+            bv = base_vals[idx, 0] if base_vals.shape[0] > 1 else base_vals[0, 0]
+            exp = shap.Explanation(
+                values=shap_high[idx],
+                base_values=bv,
+                data=X[idx],
+                feature_names=feature_names
+            )
+            plt.figure(figsize=(12, 6))
+            shap.plots.waterfall(exp, max_display=10, show=False)
+            # 修正所有 text 和 tick label 的 Unicode 减号（某些字体显示为 □）
+            for ax in plt.gcf().axes:
+                for t in ax.texts:
+                    t.set_text(t.get_text().replace('−', '-'))
+                for labels in [ax.get_xticklabels(), ax.get_yticklabels()]:
+                    for lbl in labels:
+                        lbl.set_text(lbl.get_text().replace('−', '-'))
+            plt.title(f'{model_name} — Waterfall ({label}, High Risk)', fontsize=14, fontweight='bold')
+            plt.tight_layout()
+            wf_path = os.path.join(OUT_DIR, f'{save_prefix}_{model_name}_waterfall_{label}.png')
+            plt.savefig(wf_path, dpi=120, bbox_inches='tight')
+            plt.close()
+            print(f'  [OK] {os.path.basename(wf_path)}')
+        except Exception as e:
+            print(f'  [WARN] Waterfall 图失败 ({label}): {e}')
+
+    # ── Dependence 图: Top-3 特征 ──
+    for rank in range(min(3, len(sort_idx))):
+        feat_idx = sort_idx[rank]
+        feat_name = feature_names[feat_idx]
+        try:
+            plt.figure(figsize=(10, 6))
+            shap.dependence_plot(feat_idx, shap_high, X,
+                               feature_names=feature_names,
+                               show=False)
+            plt.title(f'{model_name} — Dependence: {feat_name}', fontsize=14, fontweight='bold')
+            plt.tight_layout()
+            dep_path = os.path.join(OUT_DIR, f'{save_prefix}_{model_name}_dependence_{feat_name}.png')
+            plt.savefig(dep_path, dpi=120, bbox_inches='tight')
+            plt.close()
+            print(f'  [OK] {os.path.basename(dep_path)}')
+        except Exception as e:
+            print(f'  [WARN] Dependence 图失败 ({feat_name}): {e}')
 
     # ── 打印 Top-5 (三分类分别) ──
     print(f'  Top-5 特征 (总影响力排序):')
