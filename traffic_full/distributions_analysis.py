@@ -18,7 +18,7 @@ from safety_scoring_exp import risk_score, following_risk_score, risk_label as r
 plt.rcParams['font.sans-serif'] = ['SimHei', 'Microsoft YaHei', 'DejaVu Sans']
 plt.rcParams['axes.unicode_minus'] = False
 
-OUT_DIR = 'E:/0little/traffic_full/analysis'
+OUT_DIR = os.path.join('E:/0little/traffic_full/analysis', 'distributions_analysis')
 os.makedirs(OUT_DIR, exist_ok=True)
 
 LOCS = {
@@ -28,11 +28,11 @@ LOCS = {
 }
 
 METRICS = {
-    'TTC': {'label': 'TTC (s)', 'bins': 200, 'range': (0, 20), 'color': '#c0392b'},
-    'mTTC': {'label': 'mTTC (s)', 'bins': 200, 'range': (0, 20), 'color': '#d35400'},
-    'PET': {'label': 'PET (s)', 'bins': 200, 'range': (0, 20), 'color': '#e74c3c'},
-    'OL_PET': {'label': 'OL_PET (s)', 'bins': 200, 'range': (0, 20), 'color': '#8e44ad'},
-    'Time_Headway': {'label': 'THW (s)', 'bins': 100, 'range': (0, 10), 'color': '#2980b9'},
+    'TTC': {'label': 'TTC (s)', 'bins': 200, 'range': (0, 20), 'xlim': (0, 20), 'color': '#c0392b'},
+    'mTTC': {'label': 'mTTC (s)', 'bins': 200, 'range': (0, 20), 'xlim': (0, 20), 'color': '#d35400'},
+    'PET': {'label': 'PET (s)', 'bins': 200, 'range': (0, 10), 'xlim': (0, 10), 'color': '#e74c3c'},
+    'OL_PET': {'label': 'OL_PET (s)', 'bins': 200, 'range': (0, 12.5), 'xlim': (0, 12.5), 'color': '#8e44ad'},
+    'Time_Headway': {'label': 'THW (s)', 'bins': 100, 'range': (0, 8), 'xlim': (0, 8), 'color': '#2980b9'},
 }
 
 
@@ -77,18 +77,17 @@ def print_stats(df):
 
 
 def plot_distributions(df):
-    """图1: 五指标直方图对比 (2×3 布局)"""
-    fig, axes = plt.subplots(2, 3, figsize=(18, 10))
-    axes = axes.flatten()
+    """Fig 1: Individual metric histograms + KDE comparison"""
+    cols_list = list(METRICS.items())
 
-    for idx, (col, cfg) in enumerate(METRICS.items()):
-        ax = axes[idx]
-        vals = df[col].replace([np.inf, -np.inf], np.nan)
+    # 5 individual metric histogram + fit
+    for col_name, cfg in cols_list:
+        fig, ax = plt.subplots(figsize=(10, 6))
+        vals = df[col_name].replace([np.inf, -np.inf], np.nan)
         vals_plot = vals[(vals > 0) & (vals < cfg['range'][1])].dropna()
         ax.hist(vals_plot, bins=cfg['bins'], color=cfg['color'],
                 alpha=0.65, edgecolor='white', density=False, linewidth=0.3)
 
-        # 拟合分布: 尝试 lognormal + gamma，取 SSE 最小的
         fit_candidates = []
         for dist in [stats.lognorm, stats.gamma, stats.expon]:
             try:
@@ -104,39 +103,36 @@ def plot_distributions(df):
             _, best_dist, best_params, dist_name = fit_candidates[0]
             x_fit = np.linspace(0.01, cfg['range'][1], 500)
             y_fit = best_dist.pdf(x_fit, *best_params)
-            # 缩放到直方图尺度
             scale = len(vals_plot) * (cfg['range'][1] / cfg['bins'])
             ax.plot(x_fit, y_fit * scale, color='#2c3e50', linewidth=2.5,
-                    alpha=0.8, label=f'拟合:{dist_name}')
-            # 在右上角标注分布类型
-            ax.text(0.97, 0.5, f'最佳拟合: {dist_name}', transform=ax.transAxes,
+                    alpha=0.8, label=f'Fit: {dist_name}')
+            ax.text(0.97, 0.5, f'Best fit: {dist_name}', transform=ax.transAxes,
                     fontsize=9, ha='right', va='center',
                     bbox=dict(boxstyle='round', facecolor='white', alpha=0.85))
-
-            # 尝试第二种（如果存在）作为虚线
             if len(fit_candidates) > 1:
                 _, dist2, p2, dn2 = fit_candidates[1]
                 y2 = dist2.pdf(x_fit, *p2) * scale
                 ax.plot(x_fit, y2, color='gray', linewidth=1.5, linestyle='--',
-                        alpha=0.6, label=f'备选:{dn2}')
+                        alpha=0.6, label=f'Alt: {dn2}')
 
-        # 2s/5s 阈值线
-        ax.axvline(x=2, color='#e74c3c', linewidth=1.5, linestyle='--', alpha=0.6, label='危险(2s)')
-        ax.axvline(x=5, color='#f39c12', linewidth=1.5, linestyle='--', alpha=0.6, label='谨慎(5s)')
-
+        ax.axvline(x=2, color='#e74c3c', linewidth=1.5, linestyle='--', alpha=0.6, label='Danger (2s)')
+        ax.axvline(x=5, color='#f39c12', linewidth=1.5, linestyle='--', alpha=0.6, label='Caution (5s)')
         mean_v = vals_plot.mean()
         ax.axvline(x=mean_v, color='#2c3e50', linewidth=1, linestyle=':', alpha=0.8)
-        ax.text(mean_v, ax.get_ylim()[1] * 0.9, f'均值={mean_v:.2f}',
+        ax.text(mean_v, ax.get_ylim()[1] * 0.9, f'Mean={mean_v:.2f}',
                 fontsize=9, rotation=90, color='#2c3e50')
-
         ax.set_xlabel(cfg['label'], fontsize=11)
-        ax.set_ylabel('帧数', fontsize=11)
-        ax.set_title(f'{col} 分布', fontsize=13, fontweight='bold')
+        ax.set_ylabel('Frames', fontsize=11)
+        ax.set_title(f'{col_name} Distribution', fontsize=13, fontweight='bold')
         ax.legend(fontsize=8, loc='upper right')
-        ax.set_xlim(0, cfg['range'][1])
+        ax.set_xlim(cfg.get('xlim', (0, cfg['range'][1])))
+        fig.tight_layout()
+        fig.savefig(os.path.join(OUT_DIR, f'dist_{col_name}.png'), dpi=120, bbox_inches='tight')
+        plt.close(fig)
+        print(f'  [OK] dist_{col_name}.png')
 
-    # 第6个子图：五指标 KDE 密度对比（改用实线）
-    ax = axes[5]
+    # KDE comparison
+    fig, ax = plt.subplots(figsize=(10, 6))
     line_styles = ['-', '--', '-.', ':', (0, (3, 1, 1, 1))]
     for idx, (col, cfg) in enumerate(METRICS.items()):
         vals = df[col].replace([np.inf, -np.inf], np.nan)
@@ -151,26 +147,21 @@ def plot_distributions(df):
             pass
     ax.set_xlim(0, 15)
     ax.set_xlabel('Time (s)', fontsize=11)
-    ax.set_ylabel('概率密度', fontsize=11)
-    ax.set_title('五指标密度对比 (KDE)', fontsize=13, fontweight='bold')
+    ax.set_ylabel('Density', fontsize=11)
+    ax.set_title('KDE Comparison (5 Metrics)', fontsize=13, fontweight='bold')
     ax.axvline(x=2, color='gray', linewidth=1, linestyle='--', alpha=0.5)
     ax.axvline(x=5, color='gray', linewidth=1, linestyle='--', alpha=0.5)
     ax.legend(fontsize=9)
-
-    sample_frames = int(df.groupby(['ID', 'Source']).size().mode().iloc[0])
-    n_veh = df.groupby(['ID', 'Source']).ngroups
-    fig.suptitle(f'安全指标分布对比 ({n_veh} 辆 × {sample_frames} 帧)', fontsize=16, fontweight='bold')
     fig.tight_layout()
-    fig.savefig(os.path.join(OUT_DIR, 'dist_histograms.png'), dpi=120, bbox_inches='tight')
+    fig.savefig(os.path.join(OUT_DIR, 'dist_kde_comparison.png'), dpi=120, bbox_inches='tight')
     plt.close(fig)
-    print('  ✅ dist_histograms.png')
+    print('  [OK] dist_kde_comparison.png')
 
 
 def plot_boxplot(df):
-    """图2: 箱线图对比"""
+    """Boxplot comparison of safety metrics"""
     fig, ax = plt.subplots(figsize=(12, 6))
-    data_list = []
-    labels = []
+    data_list, labels = [], []
     for col in ['TTC', 'mTTC', 'PET', 'OL_PET', 'Time_Headway']:
         vals = df[col].replace([np.inf, -np.inf], np.nan)
         vals = vals[(vals > 0) & (vals < 20)]
@@ -182,28 +173,25 @@ def plot_boxplot(df):
     for patch, color in zip(bp['boxes'], colors):
         patch.set_facecolor(color)
         patch.set_alpha(0.5)
-    ax.axhline(y=2, color='#e74c3c', linewidth=1, linestyle='--', alpha=0.6, label='危险(2s)')
-    ax.axhline(y=5, color='#f39c12', linewidth=1, linestyle='--', alpha=0.6, label='谨慎(5s)')
+    ax.axhline(y=2, color='#e74c3c', linewidth=1, linestyle='--', alpha=0.6, label='Danger (2s)')
+    ax.axhline(y=5, color='#f39c12', linewidth=1, linestyle='--', alpha=0.6, label='Caution (5s)')
     ax.set_ylabel('Time (s)', fontsize=12)
-    ax.set_title('安全指标箱线图对比', fontsize=14, fontweight='bold')
+    ax.set_title('Safety Metrics Boxplot', fontsize=14, fontweight='bold')
     ax.legend(fontsize=10)
     fig.tight_layout()
     fig.savefig(os.path.join(OUT_DIR, 'dist_boxplot.png'), dpi=120, bbox_inches='tight')
     plt.close(fig)
-    print('  ✅ dist_boxplot.png')
+    print('  [OK] dist_boxplot.png')
 
 
 def plot_cat_distribution(df):
-    """图3: OL_PET_cat 分布饼图 + 柱状图"""
-    fig, axes = plt.subplots(1, 2, figsize=(14, 5.5))
-
-    # 每辆车聚合一行（取第一个 OL_PET_cat 值）
-    cats = df.groupby(['ID', 'Source'])['OL_PET_cat'].first().value_counts()
+    """OL_PET_cat distribution: pie (by frame) + bar (by vehicle)"""
     colors_cat = {'dangerous': '#e74c3c', 'cautious': '#f39c12', 'safe': '#27ae60',
                   'no_follower': '#95a5a6'}
+    veh_cats = df.groupby(['ID', 'Source'])['OL_PET_cat'].first().value_counts()
 
-    # 饼图
-    ax = axes[0]
+    # Pie (by frame)
+    fig, ax = plt.subplots(figsize=(8, 6))
     cat_counts = df['OL_PET_cat'].value_counts()
     c = [colors_cat.get(x, '#95a5a6') for x in cat_counts.index]
     wedges, texts, autotexts = ax.pie(
@@ -211,49 +199,44 @@ def plot_cat_distribution(df):
         autopct='%1.1f%%', startangle=90)
     for at in autotexts:
         at.set_fontsize(9)
-    ax.set_title('OL_PET_cat 分布 (按帧)', fontsize=14, fontweight='bold')
+    ax.set_title('OL_PET_cat Distribution (by Frame)', fontsize=14, fontweight='bold')
+    fig.tight_layout()
+    fig.savefig(os.path.join(OUT_DIR, 'dist_ol_pet_pie.png'), dpi=120, bbox_inches='tight')
+    plt.close(fig)
+    print('  [OK] dist_ol_pet_pie.png')
 
-    # 每辆车聚合柱状图
-    ax = axes[1]
-    veh_cats = df.groupby(['ID', 'Source'])['OL_PET_cat'].first().value_counts()
+    # Bar (by vehicle)
+    fig, ax = plt.subplots(figsize=(8, 6))
     c2 = [colors_cat.get(x, '#95a5a6') for x in veh_cats.index]
     bars = ax.bar(veh_cats.index, veh_cats.values, color=c2, width=0.5)
     for bar, v in zip(bars, veh_cats.values):
         ax.text(bar.get_x() + bar.get_width() / 2, bar.get_height() + 5,
                 str(v), ha='center', fontsize=10, fontweight='bold')
-    ax.set_xlabel('类别', fontsize=11)
-    ax.set_ylabel('车辆数', fontsize=11)
-    ax.set_title('OL_PET_cat 分布 (按车)', fontsize=14, fontweight='bold')
-
-    fig.suptitle(f'OL_PET_cat 标签分布 (n={len(cats)} 辆)', fontsize=16, fontweight='bold')
+    ax.set_xlabel('Category', fontsize=11)
+    ax.set_ylabel('Vehicles', fontsize=11)
+    ax.set_title(f'OL_PET_cat Distribution (by Vehicle, n={len(veh_cats)})', fontsize=14, fontweight='bold')
     fig.tight_layout()
-    fig.savefig(os.path.join(OUT_DIR, 'dist_ol_pet_cat.png'), dpi=120, bbox_inches='tight')
+    fig.savefig(os.path.join(OUT_DIR, 'dist_ol_pet_bar.png'), dpi=120, bbox_inches='tight')
     plt.close(fig)
-    print('  ✅ dist_ol_pet_cat.png')
+    print('  [OK] dist_ol_pet_bar.png')
 
 
 def plot_ettc_distributions(df):
-    """图5: ETTC/F_ETTC/B_ETTC 三指标分布 + KDE 对比"""
+    """ETTC/F_ETTC/B_ETTC individual histograms + KDE comparison"""
     ettc_cols = {
         'ETTC':    {'label': 'ETTC (s)',   'color': '#2980b9'},
         'F_ETTC':  {'label': 'F_ETTC (s)', 'color': '#27ae60'},
         'B_ETTC':  {'label': 'B_ETTC (s)', 'color': '#e67e22'},
     }
 
-    fig, axes = plt.subplots(2, 2, figsize=(16, 10))
-    axes = axes.flatten()
-
-    for idx, (col, cfg) in enumerate(ettc_cols.items()):
-        ax = axes[idx]
+    for col, cfg in ettc_cols.items():
         if col not in df.columns:
-            ax.set_visible(False)
             continue
+        fig, ax = plt.subplots(figsize=(10, 6))
         vals = df[col].replace([np.inf, -np.inf], np.nan)
         vals_plot = vals[(vals > 0) & (vals < 50)].dropna()
         ax.hist(vals_plot, bins=200, color=cfg['color'], alpha=0.65,
                 edgecolor='white', density=False, linewidth=0.3)
-
-        # 拟合分布
         for dist in [stats.lognorm, stats.gamma]:
             try:
                 params = dist.fit(vals_plot)
@@ -261,23 +244,26 @@ def plot_ettc_distributions(df):
                 y_fit = dist.pdf(x_fit, *params)
                 scale = len(vals_plot) * (50 / 200)
                 ax.plot(x_fit, y_fit * scale, color='#2c3e50', linewidth=2,
-                        alpha=0.7, label=f'拟合:{dist.name}')
+                        alpha=0.7, label=f'Fit: {dist.name}')
                 break
             except Exception:
                 continue
-
         mean_v = vals_plot.mean()
         ax.axvline(x=mean_v, color='#2c3e50', linewidth=1, linestyle=':', alpha=0.8)
-        ax.text(mean_v, ax.get_ylim()[1] * 0.9, f'均值={mean_v:.2f}',
+        ax.text(mean_v, ax.get_ylim()[1] * 0.9, f'Mean={mean_v:.2f}',
                 fontsize=9, rotation=90, color='#2c3e50')
         ax.set_xlabel(cfg['label'], fontsize=11)
-        ax.set_ylabel('帧数', fontsize=11)
-        ax.set_title(f'{col} 分布', fontsize=13, fontweight='bold')
+        ax.set_ylabel('Frames', fontsize=11)
+        ax.set_title(f'{col} Distribution', fontsize=13, fontweight='bold')
         ax.legend(fontsize=8)
         ax.set_xlim(0, 50)
+        fig.tight_layout()
+        fig.savefig(os.path.join(OUT_DIR, f'dist_{col}_hist.png'), dpi=120, bbox_inches='tight')
+        plt.close(fig)
+        print(f'  [OK] dist_{col}_hist.png')
 
-    # 第4个子图：三个指标的 KDE 密度对比
-    ax = axes[3]
+    # KDE comparison
+    fig, ax = plt.subplots(figsize=(10, 6))
     for col, cfg in ettc_cols.items():
         if col not in df.columns:
             continue
@@ -294,38 +280,31 @@ def plot_ettc_distributions(df):
             continue
     ax.set_xlim(0, 50)
     ax.set_xlabel('Time (s)', fontsize=11)
-    ax.set_ylabel('概率密度', fontsize=11)
-    ax.set_title('ETTC/F_ETTC/B_ETTC 密度对比 (KDE)', fontsize=13, fontweight='bold')
+    ax.set_ylabel('Density', fontsize=11)
+    ax.set_title('ETTC / F_ETTC / B_ETTC KDE Comparison', fontsize=13, fontweight='bold')
     ax.legend(fontsize=9)
-
-    fig.suptitle('扩展碰撞时间分布对比', fontsize=16, fontweight='bold')
     fig.tight_layout()
-    fig.savefig(os.path.join(OUT_DIR, 'dist_ettc.png'), dpi=120, bbox_inches='tight')
+    fig.savefig(os.path.join(OUT_DIR, 'dist_ettc_kde.png'), dpi=120, bbox_inches='tight')
     plt.close(fig)
-    print('  ✅ dist_ettc.png')
+    print('  [OK] dist_ettc_kde.png')
 
 
 def plot_rsd_distributions(df):
-    """图6: RSD/F_ERSD/B_ERSD 三指标分布 + KDE 对比"""
+    """RSD/F_ERSD/B_ERSD individual histograms + KDE comparison"""
     rsd_cols = {
         'RSD':    {'label': 'RSD (m)',   'color': '#c0392b'},
         'F_ERSD': {'label': 'F_ERSD (m)', 'color': '#2980b9'},
         'B_ERSD': {'label': 'B_ERSD (m)', 'color': '#e67e22'},
     }
 
-    fig, axes = plt.subplots(2, 2, figsize=(16, 10))
-    axes = axes.flatten()
-
-    for idx, (col, cfg) in enumerate(rsd_cols.items()):
-        ax = axes[idx]
+    for col, cfg in rsd_cols.items():
         if col not in df.columns:
-            ax.set_visible(False)
             continue
+        fig, ax = plt.subplots(figsize=(10, 6))
         vals = df[col].replace([np.inf, -np.inf], np.nan)
         vals_plot = vals[(vals > 0) & (vals < 100)].dropna()
         ax.hist(vals_plot, bins=100, color=cfg['color'], alpha=0.65,
                 edgecolor='white', density=False, linewidth=0.3)
-
         for dist in [stats.lognorm, stats.gamma]:
             try:
                 params = dist.fit(vals_plot)
@@ -333,23 +312,26 @@ def plot_rsd_distributions(df):
                 y_fit = dist.pdf(x_fit, *params)
                 scale = len(vals_plot) * (100 / 100)
                 ax.plot(x_fit, y_fit * scale, color='#2c3e50', linewidth=2,
-                        alpha=0.7, label=f'拟合:{dist.name}')
+                        alpha=0.7, label=f'Fit: {dist.name}')
                 break
             except Exception:
                 continue
-
         mean_v = vals_plot.mean()
         ax.axvline(x=mean_v, color='#2c3e50', linewidth=1, linestyle=':', alpha=0.8)
-        ax.text(mean_v, ax.get_ylim()[1] * 0.9, f'均值={mean_v:.2f}',
+        ax.text(mean_v, ax.get_ylim()[1] * 0.9, f'Mean={mean_v:.2f}',
                 fontsize=9, rotation=90, color='#2c3e50')
         ax.set_xlabel(cfg['label'], fontsize=11)
-        ax.set_ylabel('帧数', fontsize=11)
-        ax.set_title(f'{col} 分布', fontsize=13, fontweight='bold')
+        ax.set_ylabel('Frames', fontsize=11)
+        ax.set_title(f'{col} Distribution', fontsize=13, fontweight='bold')
         ax.legend(fontsize=8)
         ax.set_xlim(0, 100)
+        fig.tight_layout()
+        fig.savefig(os.path.join(OUT_DIR, f'dist_{col}_hist.png'), dpi=120, bbox_inches='tight')
+        plt.close(fig)
+        print(f'  [OK] dist_{col}_hist.png')
 
-    # 第4个子图：KDE 密度对比
-    ax = axes[3]
+    # KDE comparison
+    fig, ax = plt.subplots(figsize=(10, 6))
     for col, cfg in rsd_cols.items():
         if col not in df.columns:
             continue
@@ -366,15 +348,13 @@ def plot_rsd_distributions(df):
             continue
     ax.set_xlim(0, 100)
     ax.set_xlabel('Distance (m)', fontsize=11)
-    ax.set_ylabel('概率密度', fontsize=11)
-    ax.set_title('RSD/F_ERSD/B_ERSD 密度对比 (KDE)', fontsize=13, fontweight='bold')
+    ax.set_ylabel('Density', fontsize=11)
+    ax.set_title('RSD / F_ERSD / B_ERSD KDE Comparison', fontsize=13, fontweight='bold')
     ax.legend(fontsize=9)
-
-    fig.suptitle('危险停车距离分布对比', fontsize=16, fontweight='bold')
     fig.tight_layout()
-    fig.savefig(os.path.join(OUT_DIR, 'dist_rsd.png'), dpi=120, bbox_inches='tight')
+    fig.savefig(os.path.join(OUT_DIR, 'dist_rsd_kde.png'), dpi=120, bbox_inches='tight')
     plt.close(fig)
-    print('  ✅ dist_rsd.png')
+    print('  [OK] dist_rsd_kde.png')
 
 
 def plot_risk_distribution_by_location(df):
@@ -388,16 +368,19 @@ def plot_risk_distribution_by_location(df):
     colors_fl = {'高风险': '#c0392b', '中风险': '#d35400', '低风险': '#1e8449'}
 
     # ── 变道车辆 ──
+    lc_scores = {loc: [] for loc in locations}
     lc_counts = {loc: {lvl: 0 for lvl in risk_levels} for loc in locations}
     for (vid, source, loc), grp in df.groupby(['ID', 'Source', 'location']):
         try:
             sc = risk_score(grp, v0_kmh=80 if loc == 'location5' else 100)
+            lc_scores[loc].append(sc)
             lbl, _ = risk_label_exp(sc, 'lane_change')
             lc_counts[loc][lbl] += 1
         except:
             continue
 
     # ── 跟驰车辆 ──
+    fl_scores = {loc: [] for loc in locations}
     fl_counts = {loc: {lvl: 0 for lvl in risk_levels} for loc in locations}
     for loc in locations:
         fp = os.path.normpath(os.path.join(LOCS[loc], 'traffic_following_change.csv'))
@@ -407,6 +390,7 @@ def plot_risk_distribution_by_location(df):
         for (vid, src), grp in df_f.groupby(['ID', 'Source']):
             try:
                 sc = following_risk_score(grp, v0_kmh=80 if loc == 'location5' else 100)
+                fl_scores[loc].append(sc)
                 lbl, _ = risk_label_exp(sc, 'following')
                 fl_counts[loc][lbl] += 1
             except:
@@ -422,182 +406,180 @@ def plot_risk_distribution_by_location(df):
             lc_pct[loc][lvl] = lc_counts[loc][lvl] / lc_tot * 100
             fl_pct[loc][lvl] = fl_counts[loc][lvl] / fl_tot * 100
 
-    # ── 绘图：以 y=0 为中心，变道向上、跟驰向下 ──
-    fig, ax = plt.subplots(figsize=(14, 7))
-    x_pos = np.arange(len(locations))
-    width = 0.25
+    # ── 山脊密度图 (Ridgeline): 跟驰在上、变道在下 ──
+    fig, ax = plt.subplots(figsize=(14, 9))
 
-    # 找最高百分比，用于对称轴缩放（让最高柱占 ~87% 空间）
-    max_pct = max(
-        max(lc_pct[loc][lvl] for loc in locations for lvl in risk_levels),
-        max(fl_pct[loc][lvl] for loc in locations for lvl in risk_levels)
-    )
+    x_grid = np.linspace(0, 1, 500)
+    band_height = 1.2
+    gap = 0.3
+    n_locs = len(locations)
+    total_h = n_locs * (band_height + gap)
 
-    for idx, lvl in enumerate(risk_levels):
-        lc_vals = [lc_pct[loc][lvl] for loc in locations]
-        fl_vals = [fl_pct[loc][lvl] for loc in locations]
+    lc_color = '#e74c3c'
+    fl_color = '#3498db'
+    half_bh = band_height * 0.85 * 0.8
 
-        # 上：变道
-        bars = ax.bar(x_pos + idx * width, lc_vals, width,
-                      label=f'变道-{lvl}', color=colors_lc[lvl], alpha=0.85, edgecolor='white')
-        for bar, v in zip(bars, lc_vals):
-            if v > 1:
-                ax.text(bar.get_x() + bar.get_width() / 2, bar.get_height() + 2,
-                        f'{v:.0f}%', ha='center', va='bottom', fontsize=8, fontweight='bold',
-                        color=colors_lc[lvl])
+    for idx, loc in enumerate(locations):
+        y_base = idx * (band_height + gap)
 
-        # 下：跟驰（取负值显示）
-        bars = ax.bar(x_pos + idx * width, [-v for v in fl_vals], width,
-                      label=f'跟驰-{lvl}', color=colors_fl[lvl], alpha=0.85, edgecolor='white')
-        for bar, v in zip(bars, fl_vals):
-            if v > 1:
-                ax.text(bar.get_x() + bar.get_width() / 2, bar.get_height() - 2,
-                        f'{v:.0f}%', ha='center', va='top', fontsize=8, fontweight='bold',
-                        color=colors_fl[lvl])
+        # ── 跟驰 KDE (基线上方) ──
+        fl_data = np.array(fl_scores[loc])
+        if len(fl_data) > 3:
+            fl_kde = stats.gaussian_kde(fl_data, bw_method='scott')
+            fl_d = fl_kde(x_grid)
+            fl_d_s = fl_d / fl_d.max() * half_bh
+            ax.fill_between(x_grid, y_base, y_base + fl_d_s,
+                           color=fl_color, alpha=0.65, linewidth=0)
+            ax.plot(x_grid, y_base + fl_d_s, color=fl_color, linewidth=1.8, alpha=0.9)
 
-    # 对称百分比轴（两侧空间相等，最高比例柱占 ~87%）
-    margin_pct = max_pct * 0.15
-    ax.set_ylim(-(max_pct + margin_pct), max_pct + margin_pct)
-    ax.axhline(0, color='black', linewidth=0.8)
+        # ── 变道 KDE (基线下方) ──
+        lc_data = np.array(lc_scores[loc])
+        if len(lc_data) > 3:
+            lc_kde = stats.gaussian_kde(lc_data, bw_method='scott')
+            lc_d = lc_kde(x_grid)
+            lc_d_s = lc_d / lc_d.max() * half_bh
+            ax.fill_between(x_grid, y_base - lc_d_s, y_base,
+                           color=lc_color, alpha=0.65, linewidth=0)
+            ax.plot(x_grid, y_base - lc_d_s, color=lc_color, linewidth=1.8, alpha=0.9)
+
+        # 场景标签
+        ax.text(-0.04, y_base, f'Loc{idx+1}',
+               ha='right', va='center', fontsize=12, fontweight='bold',
+               transform=ax.transData)
+
+        # 基线
+        ax.axhline(y=y_base, color='gray', linewidth=0.5, alpha=0.3)
+
+    # 阈值线
+    x_min, x_max = -0.08, 1.08
+    y_top = total_h + gap * 0.3
+    y_bot = -gap * 0.3
+
+    # 阈值线（已去除，保持图面简洁）
+
+    ax.set_xlim(x_min, x_max)
+    ax.set_ylim(-half_bh - gap * 0.8, total_h + gap * 0.5)
+
+    # 双 x 轴：底部=变道，顶部=跟驰
+    ax.set_xlabel('risk score', fontsize=14, fontweight='bold')
+    ax.tick_params(axis='x', labelsize=10)
+    ax_top = ax.secondary_xaxis('top', functions=(lambda x: x, lambda x: x))
+    ax_top.tick_params(axis='x', colors=fl_color, labelsize=10)
+
     ax.set_yticks([])
-    ax.set_xlabel('场景位置', fontsize=12, fontweight='bold')
-    ax.set_ylabel('跟驰 ↑ / 变道 ↓', fontsize=12, fontweight='bold')
-    ax.set_title('变道 vs 跟驰 — 各场景风险等级占比对比', fontsize=14, fontweight='bold')
-    ax.set_xticks(x_pos + width)
-    loc_labels = ['场景1', '场景2', '场景3', '场景4', '场景5']
-    ax.set_xticklabels(loc_labels, fontsize=11)
+    ax.spines['left'].set_visible(False)
+    ax.spines['right'].set_visible(False)
 
-    # 双图例：变道 + 跟驰
-    handles_lc = [plt.Rectangle((0, 0), 1, 1, fc=colors_lc[lvl], alpha=0.85) for lvl in risk_levels]
-    handles_fl = [plt.Rectangle((0, 0), 1, 1, fc=colors_fl[lvl], alpha=0.85) for lvl in risk_levels]
-    leg1 = ax.legend(handles_lc, [f'变道-{lvl}' for lvl in risk_levels],
-                     title='变道', loc='upper left', fontsize=9, title_fontsize=10)
-    ax.add_artist(leg1)
-    ax.legend(handles_fl, [f'跟驰-{lvl}' for lvl in risk_levels],
-              title='跟驰', loc='lower left', fontsize=9, title_fontsize=10)
-    ax.grid(axis='y', alpha=0.3, linestyle='--')
+    # 图例（扩大 2 倍）
+    from matplotlib.patches import Patch
+    legend_elements = [Patch(facecolor=fl_color, alpha=0.6, label='Following'),
+                       Patch(facecolor=lc_color, alpha=0.6, label='Lane Change')]
+    ax.legend(handles=legend_elements, loc='upper right',
+              fontsize=22, framealpha=0.9,
+              handlelength=2.0, handleheight=1.6)
 
     fig.tight_layout()
     fig.savefig(os.path.join(OUT_DIR, 'risk_by_location.png'), dpi=120, bbox_inches='tight')
     plt.close(fig)
-    print('  ✅ risk_by_location.png')
+    print('  [OK] risk_by_location.png')
 
-    # 打印统计信息
-    print("\n各场景风险等级分布:")
+    # Print summary
+    print("\nRisk distribution by location:")
     print("-" * 70)
     for loc in locations:
         lc_t = sum(lc_counts[loc].values())
         fl_t = sum(fl_counts[loc].values())
         print(f"{loc}:")
-        print(f"  变道({lc_t}辆): 高={lc_counts[loc]['高风险']}({lc_counts[loc]['高风险']/max(lc_t,1)*100:.1f}%) "
-              f"中={lc_counts[loc]['中风险']}({lc_counts[loc]['中风险']/max(lc_t,1)*100:.1f}%) "
-              f"低={lc_counts[loc]['低风险']}({lc_counts[loc]['低风险']/max(lc_t,1)*100:.1f}%)")
-        print(f"  跟驰({fl_t}辆): 高={fl_counts[loc]['高风险']}({fl_counts[loc]['高风险']/max(fl_t,1)*100:.1f}%) "
-              f"中={fl_counts[loc]['中风险']}({fl_counts[loc]['中风险']/max(fl_t,1)*100:.1f}%) "
-              f"低={fl_counts[loc]['低风险']}({fl_counts[loc]['低风险']/max(fl_t,1)*100:.1f}%)")
+        print(f"  Lane change({lc_t}): High={lc_counts[loc]['高风险']}({lc_counts[loc]['高风险']/max(lc_t,1)*100:.1f}%) "
+              f"Mid={lc_counts[loc]['中风险']}({lc_counts[loc]['中风险']/max(lc_t,1)*100:.1f}%) "
+              f"Low={lc_counts[loc]['低风险']}({lc_counts[loc]['低风险']/max(lc_t,1)*100:.1f}%)")
+        print(f"  Following({fl_t}): High={fl_counts[loc]['高风险']}({fl_counts[loc]['高风险']/max(fl_t,1)*100:.1f}%) "
+              f"Mid={fl_counts[loc]['中风险']}({fl_counts[loc]['中风险']/max(fl_t,1)*100:.1f}%) "
+              f"Low={fl_counts[loc]['低风险']}({fl_counts[loc]['低风险']/max(fl_t,1)*100:.1f}%)")
 
 
 def plot_overall_risk_distribution(df):
-    """图8: 左/右变道的风险等级汇总分布图（各一个饼图+柱状图）"""
-    print("\n计算全量数据风险等级（按左/右变道分组）...")
-    
-    # 按车辆分组计算风险评分
+    """Left/right lane change risk distribution (pie + bar per side)"""
+    print("\nComputing risk levels (by left/right lane change)...")
+
     vehicle_risks = []
     grouped = df.groupby(['ID', 'Source'])
-    
+
     for (vid, source), grp in grouped:
         try:
-            risk_score = overall_risk(grp, v0_kmh=100)
-            label, color = risk_label(risk_score)
-            # 获取该车辆的变道方向（取第一个值）
+            rs = overall_risk(grp, v0_kmh=100)
+            label, color = risk_label(rs)
             side = grp['side'].iloc[0] if 'side' in grp.columns else 'unknown'
             vehicle_risks.append({
-                'ID': vid,
-                'Source': source,
-                'side': side,
-                'risk_code': risk_score,
-                'risk_label': label,
-                'color': color
+                'ID': vid, 'Source': source, 'side': side,
+                'risk_code': rs, 'risk_label': label, 'color': color
             })
-        except Exception as e:
+        except Exception:
             continue
-    
+
     if not vehicle_risks:
-        print("  ⚠️ 无法计算风险等级，跳过此图")
+        print("  [SKIP] No data")
         return
-    
+
     risk_df = pd.DataFrame(vehicle_risks)
     colors_map = {'高风险': '#e74c3c', '中风险': '#f39c12', '低风险': '#27ae60'}
     labels_order = ['高风险', '中风险', '低风险']
-    
-    # 分别处理左变道和右变道
-    for side_name, side_value in [('左变道', 'left'), ('右变道', 'right')]:
+    labels_en = ['High Risk', 'Medium Risk', 'Low Risk']
+
+    for side_name, side_value in [('Left', 'left'), ('Right', 'right')]:
         side_data = risk_df[risk_df['side'] == side_value]
-        
         if len(side_data) == 0:
-            print(f"  ⚠️ {side_name}无数据，跳过")
+            print(f"  [SKIP] {side_name} lane change: no data")
             continue
-        
-        # 统计风险等级分布
+
         risk_counts = side_data['risk_label'].value_counts()
         counts_ordered = [risk_counts.get(l, 0) for l in labels_order]
         colors_ordered = [colors_map[l] for l in labels_order]
-        total_vehicles = sum(counts_ordered)
-        
-        fig, axes = plt.subplots(1, 2, figsize=(14, 6))
-        
-        # 左图：饼图
-        ax = axes[0]
+        total_v = sum(counts_ordered)
+
+        # Pie
+        fig, ax = plt.subplots(figsize=(8, 6))
         wedges, texts, autotexts = ax.pie(
-            counts_ordered, labels=labels_order, colors=colors_ordered,
+            counts_ordered, labels=labels_en, colors=colors_ordered,
             autopct='%1.1f%%', startangle=90, textprops={'fontsize': 11, 'fontweight': 'bold'})
-        
         for at in autotexts:
-            at.set_fontsize(11)
-            at.set_fontweight('bold')
-        
-        ax.set_title(f'{side_name}风险等级分布 (n={total_vehicles} 辆)', 
+            at.set_fontsize(11); at.set_fontweight('bold')
+        ax.set_title(f'{side_name} Lane Change Risk Levels (n={total_v})',
                     fontsize=14, fontweight='bold', pad=20)
-        
-        # 右图：柱状图
-        ax = axes[1]
-        bars = ax.bar(labels_order, counts_ordered, color=colors_ordered, 
+        fig.tight_layout()
+        fig.savefig(os.path.join(OUT_DIR, f'overall_risk_{side_value}_pie.png'), dpi=120, bbox_inches='tight')
+        plt.close(fig)
+        print(f'  [OK] overall_risk_{side_value}_pie.png')
+
+        # Bar
+        fig, ax = plt.subplots(figsize=(8, 6))
+        bars = ax.bar(labels_en, counts_ordered, color=colors_ordered,
                      width=0.5, alpha=0.85, edgecolor='white')
-        
         for bar, count in zip(bars, counts_ordered):
             ax.text(bar.get_x() + bar.get_width() / 2, bar.get_height() + 2,
                    str(count), ha='center', va='bottom', fontsize=12, fontweight='bold')
-        
-        ax.set_xlabel('风险等级', fontsize=12, fontweight='bold')
-        ax.set_ylabel('车辆数量', fontsize=12, fontweight='bold')
-        ax.set_title(f'{side_name}风险等级车辆数量统计', fontsize=14, fontweight='bold')
+        ax.set_xlabel('Risk Level', fontsize=12, fontweight='bold')
+        ax.set_ylabel('Vehicles', fontsize=12, fontweight='bold')
+        ax.set_title(f'{side_name} Lane Change Vehicle Count', fontsize=14, fontweight='bold')
         ax.grid(axis='y', alpha=0.3, linestyle='--')
-        
-        fig.suptitle(f'{side_name}风险等级汇总分布', fontsize=16, fontweight='bold', y=1.02)
         fig.tight_layout()
-        
-        filename = f'overall_risk_{side_value}.png'
-        fig.savefig(os.path.join(OUT_DIR, filename), dpi=120, bbox_inches='tight')
+        fig.savefig(os.path.join(OUT_DIR, f'overall_risk_{side_value}_bar.png'), dpi=120, bbox_inches='tight')
         plt.close(fig)
-        print(f'  ✅ {filename}')
-        
-        # 打印详细统计
-        print(f"\n{side_name}风险等级汇总:")
-        print("-" * 70)
-        for level in labels_order:
-            count = risk_counts.get(level, 0)
-            pct = count / total_vehicles * 100 if total_vehicles > 0 else 0
-            print(f"{level}: {count} 辆 ({pct:.1f}%)")
-        print(f"总计: {total_vehicles} 辆")
+        print(f'  [OK] overall_risk_{side_value}_bar.png')
+
+        # Stats
+        print(f"\n{side_name} Lane Change Risk Summary:")
+        print("-" * 50)
+        for level, cnt in zip(labels_en, counts_ordered):
+            print(f"  {level}: {cnt} ({cnt/max(total_v,1)*100:.1f}%)")
+        print(f"  Total: {total_v}")
 
 
 def plot_risk_heatmap(df):
-    """图8: 各场景风险位置热力图（仅高风险车辆点位）"""
+    """Risk heatmap per location (lane change + following)"""
     import os
+    print("\nComputing risk labels...")
 
-    print("\n计算各车辆风险标签（仅高风险）...")
-
-    # ── 变道：逐车辆算 risk_score → risk_label，仅标记高风险 ──
     lc_risk_map = {}
     for (vid, source, loc), grp in df.groupby(['ID', 'Source', 'location']):
         try:
@@ -611,7 +593,6 @@ def plot_risk_heatmap(df):
     df_lc['is_high_risk'] = df_lc.apply(
         lambda r: lc_risk_map.get((r['ID'], r['Source'], r['location']), 0), axis=1)
 
-    # ── 跟驰：逐车辆算 following_risk_score → risk_label，仅标记高风险 ──
     df_fl_parts = []
     for loc_name in LOCS:
         fp = os.path.normpath(os.path.join(LOCS[loc_name], 'traffic_following_change.csv'))
@@ -634,23 +615,13 @@ def plot_risk_heatmap(df):
     df_all = pd.concat([df_lc, df_fl], ignore_index=True)
     n_high_risk = df_all['is_high_risk'].sum()
 
-    n_vehicles = df_all.groupby(['ID', 'Source']).ngroups
-    print(f"  总车辆: {n_vehicles} (变道 {df_lc.groupby(['ID','Source']).ngroups}, "
-          f"跟驰 {df_fl.groupby(['ID','Source']).ngroups if len(df_fl) else 0})")
-    print(f"  高风险帧数: {int(n_high_risk)}/{len(df_all)} ({n_high_risk/len(df_all)*100:.1f}%)"
-          )
-
-    loc_keys = list(LOCS.keys())
-    fig, axes = plt.subplots(1, 5, figsize=(25, 5.5), constrained_layout=True)
-    last_im = None
-
-    for idx, loc_name in enumerate(loc_keys):
-        ax = axes[idx]
+    # Individual heatmaps per location
+    for loc_name in LOCS:
         loc_df = df_all[df_all['location'] == loc_name]
         if len(loc_df) == 0:
-            ax.set_title(f'{loc_name} (无数据)', fontsize=13, fontweight='bold')
             continue
 
+        fig, ax = plt.subplots(figsize=(8, 6))
         x_all = loc_df['X'].values
         y_all = loc_df['Y'].values
         weights = loc_df['is_high_risk'].values
@@ -668,10 +639,9 @@ def plot_risk_heatmap(df):
         h = h.T
         extent = [x_edges[0], x_edges[-1], y_edges[0], y_edges[-1]]
 
-        last_im = ax.imshow(h, cmap='hot_r', interpolation='bilinear', alpha=0.85,
-                            aspect='auto', extent=extent, origin='lower')
+        im = ax.imshow(h, cmap='hot_r', interpolation='bilinear', alpha=0.85,
+                       aspect='auto', extent=extent, origin='lower')
 
-        # 车道线
         coeffs_path = os.path.join(LOCS[loc_name], 'lane_coeffs.csv')
         if os.path.exists(coeffs_path):
             coeffs_df = pd.read_csv(coeffs_path)
@@ -688,26 +658,57 @@ def plot_risk_heatmap(df):
         ax.set_ylim(y_max + y_pad, y_min - y_pad)
         ax.set_xlabel('X (m)', fontsize=10)
         ax.set_ylabel('Y (m)', fontsize=10)
-        ax.set_title(f'{loc_name}', fontsize=13, fontweight='bold')
+        ax.set_title(f'{loc_name} Risk Heatmap', fontsize=13, fontweight='bold')
+        fig.colorbar(im, ax=ax, shrink=0.8, label='High Risk Density')
+        fig.tight_layout()
+        fig.savefig(os.path.join(OUT_DIR, f'risk_heatmap_{loc_name}.png'), dpi=150, bbox_inches='tight')
+        plt.close(fig)
+        print(f'  [OK] risk_heatmap_{loc_name}.png')
 
-    if last_im is not None:
-        fig.colorbar(last_im, ax=axes, shrink=0.6, label='高风险帧密度', pad=0.02)
-    fig.suptitle('各场景风险位置分布热力图（变道 + 跟驰）', fontsize=18, fontweight='bold')
-    fig.savefig(os.path.join(OUT_DIR, 'risk_heatmap.png'), dpi=150, bbox_inches='tight')
-    plt.close(fig)
-    print('  ✅ risk_heatmap.png')
+
+def print_metric_percentiles(base_dir='E:/0little'):
+    """读取全部变道+跟驰数据，计算五个指标 (mTTC/THW/PET/F_ETTC/OL_PET) 的 P15/P50/P85"""
+    locs = [f'location{i}' for i in range(1, 6)]
+    metric_cols = ['mTTC', 'Time_Headway', 'PET', 'F_ETTC', 'OL_PET']
+    all_vals = {col: [] for col in metric_cols}
+
+    print("\n" + "=" * 60)
+    print("  Metric Percentiles (P15 / P50 / P85)")
+    print("=" * 60)
+
+    for loc in locs:
+        for fname in ['traffic_left_change.csv', 'traffic_right_change.csv', 'traffic_following_change.csv']:
+            fp = os.path.normpath(os.path.join(base_dir, loc, fname))
+            if not os.path.exists(fp):
+                continue
+            df = pd.read_csv(fp, low_memory=False)
+            for col in metric_cols:
+                if col in df.columns:
+                    vals = df[col].replace([np.inf, -np.inf], np.nan).dropna().values
+                    vals = vals[vals > 0]
+                    all_vals[col].extend(vals.tolist())
+
+    print('  {:<20s} {:>8s} {:>8s} {:>8s} {:>8s}'.format('Metric', 'P15', 'P50', 'P85', 'Count'))
+    print('  ' + '-' * 52)
+    for col in metric_cols:
+        arr = np.array(all_vals[col])
+        if len(arr) == 0:
+            continue
+        p15, p50, p85 = np.percentile(arr, [15, 50, 85])
+        print(f'  {col:<20s} {p15:>8.3f} {p50:>8.3f} {p85:>8.3f} {len(arr):>8d}')
+    print("=" * 60)
 
 
 def main():
-    print("加载全量数据...")
+    print("Loading all data...")
     df = load_all()
     n_veh = df.groupby(['ID', 'Source']).ngroups
-    print(f"  共计 {len(df)} 行, {n_veh} 辆车")
+    print(f"  Total: {len(df)} rows, {n_veh} vehicles")
 
-    print("\n打印统计摘要...")
+    print("\nPrinting statistics summary...")
     print_stats(df)
 
-    print("\n生成图表...")
+    print("\nGenerating charts...")
     plot_distributions(df)
     plot_boxplot(df)
     plot_cat_distribution(df)
@@ -717,7 +718,7 @@ def main():
     plot_overall_risk_distribution(df)
     plot_risk_heatmap(df)
 
-    print(f"\n✅ 全部完成! 图表已保存至 {OUT_DIR}")
+    print(f"\n✅ All done! Charts saved to {OUT_DIR}")
 
 
 if __name__ == '__main__':

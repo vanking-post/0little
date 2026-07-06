@@ -18,7 +18,7 @@ LOC_V0 = {'location5': 80}  # location5 基准速度 80km/h，其余默认 100
 
 # 场景标签与颜色
 COLORS = {'lane_change': '#e74c3c', 'following': '#3498db'}
-LABELS = {'lane_change': '变道车辆', 'following': '跟驰车辆'}
+LABELS = {'lane_change': 'Lane Change', 'following': 'Following'}
 
 # 风险等级阈值
 THRESHOLDS = {
@@ -76,7 +76,7 @@ print(f'跟驰车辆: {len(df_fl)} 辆')
 
 # ── 图1：风险分分布（排除 score=0）+ 箱线图 | 左右排布 ──
 fig, axes = plt.subplots(1, 2, figsize=(16, 6))
-fig.suptitle('跟驰 vs 变道车辆 — 风险分分布与箱线图', fontsize=16, fontweight='bold')
+fig.suptitle('Following vs Lane Change — Risk Score Distribution & Box Plot', fontsize=16, fontweight='bold')
 
 # 左：分布直方图（含 score=0 占比小窗）
 ax = axes[0]
@@ -87,8 +87,8 @@ for i, (key, scores) in enumerate([('lane_change', df_lc['score']), ('following'
     ax2.bar(i, zero_pct, width=0.4, color=COLORS[key], alpha=0.7)
     ax2.text(i, zero_pct + 1, f'{zero_pct:.0f}%', ha='center', fontsize=9, fontweight='bold', color=COLORS[key])
 ax2.set_xticks([0, 1])
-ax2.set_xticklabels(['变道', '跟驰'], fontsize=8)
-ax2.set_ylabel('score=0 占比 (%)', fontsize=8)
+ax2.set_xticklabels(['Lane Change', 'Following'], fontsize=8)
+ax2.set_ylabel('score=0 ratio (%)', fontsize=8)
 ax2.set_ylim(0, 35)
 ax2.grid(axis='y', alpha=0.3)
 
@@ -97,29 +97,29 @@ for key, scores in [('lane_change', df_lc['score']), ('following', df_fl['score'
     pos = scores[scores > 0]
     ax.hist(pos, bins=bins, density=True, alpha=0.5,
             color=COLORS[key], label=f'{LABELS[key]} (n={len(pos)})')
-ax.set_xlabel('风险分', fontsize=11)
-ax.set_ylabel('密度 (>0)', fontsize=11)
+ax.set_xlabel('Risk Score', fontsize=11)
+ax.set_ylabel('Density (>0)', fontsize=11)
 ax.legend(fontsize=9)
 ax.grid(axis='y', alpha=0.3)
-ax.set_title('风险分分布（排除 score=0）', fontsize=13, fontweight='bold')
+ax.set_title('Risk Score Distribution (excl. score=0)', fontsize=13, fontweight='bold')
 ax.set_xlim(0, 1)
 
 # 右：箱线图（横向）
 ax = axes[1]
 bp_data = [df_lc['score'].values, df_fl['score'].values]
-bp = ax.boxplot(bp_data, tick_labels=['变道车辆', '跟驰车辆'], patch_artist=True, vert=False,
+bp = ax.boxplot(bp_data, tick_labels=['Lane Change', 'Following'], patch_artist=True, vert=False,
                 widths=0.4, showmeans=True,
                 meanprops=dict(marker='D', markerfacecolor='white', markeredgecolor='black'))
 for patch, color in zip(bp['boxes'], [COLORS['lane_change'], COLORS['following']]):
     patch.set_facecolor(color)
     patch.set_alpha(0.5)
-ax.set_xlabel('风险分', fontsize=11)
+ax.set_xlabel('Risk Score', fontsize=11)
 ax.grid(axis='x', alpha=0.3)
-ax.set_title('风险分箱线图', fontsize=13, fontweight='bold')
+ax.set_title('Risk Score Box Plot', fontsize=13, fontweight='bold')
 
-for i, (name, scores) in enumerate([('变道车辆', df_lc['score']), ('跟驰车辆', df_fl['score'])]):
+for i, (name, scores) in enumerate([('Lane Change', df_lc['score']), ('Following', df_fl['score'])]):
     stats_text = (f'{name}\n'
-                  f'均值={scores.mean():.3f}  中位数={np.median(scores):.3f}\n'
+                  f'Mean={scores.mean():.3f}  Median={np.median(scores):.3f}\n'
                   f'P10={np.percentile(scores,10):.3f}  P90={np.percentile(scores,90):.3f}\n'
                   f'Max={scores.max():.3f}  n={len(scores)}')
     ax.text(0.95, 0.95 - i * 0.25, stats_text, transform=ax.transAxes,
@@ -135,7 +135,7 @@ print(f'\n[OK] {out1}')
 
 # ── 图2：CDF + 风险等级比例 | 左右排布 ──
 fig, axes = plt.subplots(1, 2, figsize=(16, 6))
-fig.suptitle('跟驰 vs 变道车辆 — 累积分布与风险等级比例', fontsize=16, fontweight='bold')
+fig.suptitle('Following vs Lane Change — CDF & Risk Level Ratio', fontsize=16, fontweight='bold')
 
 # 左：CDF
 ax = axes[0]
@@ -147,11 +147,11 @@ for key, scores in [('lane_change', df_lc['score']), ('following', df_fl['score'
     for p, pct in [(t['mid'], 50), (t['high'], 85)]:
         ax.axvline(p, color=COLORS[key], linewidth=1, linestyle='--', alpha=0.4)
         ax.axhline(pct / 100, color=COLORS[key], linewidth=1, linestyle=':', alpha=0.4)
-ax.set_xlabel('风险分', fontsize=11)
-ax.set_ylabel('累积比例', fontsize=11)
+ax.set_xlabel('Risk Score', fontsize=11)
+ax.set_ylabel('Cumulative Ratio', fontsize=11)
 ax.legend(fontsize=9)
 ax.grid(alpha=0.3)
-ax.set_title('累积分布函数 (CDF)', fontsize=13, fontweight='bold')
+ax.set_title('Cumulative Distribution Function (CDF)', fontsize=13, fontweight='bold')
 
 # 右：风险等级比例堆叠图
 ax = axes[1]
@@ -164,13 +164,13 @@ for i, (key, scores) in enumerate([('lane_change', df_lc['score']), ('following'
     mid = ((scores >= t['mid']) & (scores < t['high'])).sum()
     high = (scores >= t['high']).sum()
     total = low + mid + high
-    ax.bar(x_pos[i], low / total * 100, width, label='低风险' if i == 0 else None,
+    ax.bar(x_pos[i], low / total * 100, width, label='Low Risk' if i == 0 else None,
            color='#27ae60', alpha=0.8)
     ax.bar(x_pos[i], mid / total * 100, width, bottom=low / total * 100,
-           label='中风险' if i == 0 else None, color='#f39c12', alpha=0.8)
+           label='Medium Risk' if i == 0 else None, color='#f39c12', alpha=0.8)
     ax.bar(x_pos[i], high / total * 100, width,
            bottom=(low + mid) / total * 100,
-           label='高风险' if i == 0 else None, color='#e74c3c', alpha=0.8)
+           label='High Risk' if i == 0 else None, color='#e74c3c', alpha=0.8)
     y_offset = 0
     for pct, c in [(low / total * 100, '#27ae60'), (mid / total * 100, '#f39c12'), (high / total * 100, '#e74c3c')]:
         if pct > 5:
@@ -179,12 +179,12 @@ for i, (key, scores) in enumerate([('lane_change', df_lc['score']), ('following'
         y_offset += pct
 
 ax.set_xticks(x_pos)
-ax.set_xticklabels(['变道车辆', '跟驰车辆'], fontsize=11)
-ax.set_ylabel('比例 (%)', fontsize=11)
+ax.set_xticklabels(['Lane Change', 'Following'], fontsize=11)
+ax.set_ylabel('Ratio (%)', fontsize=11)
 ax.legend(fontsize=9, loc='upper right')
 ax.set_ylim(0, 110)
 ax.grid(axis='y', alpha=0.3)
-ax.set_title('风险等级比例', fontsize=13, fontweight='bold')
+ax.set_title('Risk Level Ratio', fontsize=13, fontweight='bold')
 
 plt.tight_layout()
 out2 = os.path.join(OUT_DIR, 'risk_score_cdf_levels.png')

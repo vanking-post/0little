@@ -164,7 +164,13 @@
       "Bash(/d/ancaonda/install/envs/tf_gpu/Scripts/pip install *)",
       "Bash(grep -v \"^WARNING\\\\|^I0000\\\\|^$\")",
       "Bash(git stash *)",
-      "Bash(git pull *)"
+      "Bash(git pull *)",
+      "Bash(sort -t_ -k2)",
+      "Bash(echo \"Failed: $?\")",
+      "Bash(grep -n \"\\\\\\\\\\\\\\\\section{\" main.tex)",
+      "Bash(D:/latex/miktex/miktex/bin/x64/xelatex.exe -interaction=nonstopmode -job-name=main3 main.tex)",
+      "Bash(D:/latex/miktex/miktex/bin/x64/bibtex.exe main3 *)",
+      "Bash(D:/latex/miktex/miktex/bin/x64/pdftotext.exe \"E:/0little/paper_rewriting_output/final_paper/main3.pdf\" -)"
     ],
     "defaultMode": "bypassPermissions"
   },

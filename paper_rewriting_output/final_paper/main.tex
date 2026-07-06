@@ -563,10 +563,11 @@ SHAP 分析揭示的"普适性因子（Time\_Headway）与条件性因子（B\_D
 \section{附注}
 实验配置：XGBoost（ST 优化后）：600棵基学习器，最大树深3，学习率 0.095，列采样率 0.832，早停轮次 20，多类 softmax 目标函数。RF（ST 优化后）：600棵决策树，最大树深 16，最小叶节点样本数 9，class\_weight=`balanced'。MLP（ST 优化后）：单隐藏层 128 神经元，ReLU 激活，自适应学习率，早停正则化，StandardScaler 标准化。LSTM：两层循环网络（64$\to$32 神经元），25\% Dropout，Adam 优化器（初始学习率 $5\times10^{-4}$），早停耐心值 15。
 
+实验硬件环境：CPU AMD Ryzen~5~7500F，GPU NVIDIA GeForce~RTX~4060~Ti（8~GB 显存），内存 32~GB DDR5（2$\times$16~GB），操作系统 Windows~11。软件环境：Python~3.10，TensorFlow~2.10.1（CUDA~11.2 / cuDNN~8）。
+
 % ── 致谢 ──
 \section*{致谢}
-本研究使用的 CQSkyEyeX 数据集由重庆交通大学交通运输学院徐进教授团队公开提供\cite{C17}，特此致谢。\par
-本研究得到国家自然科学基金面上项目（52372366）资助。
+本研究使用的 CQSkyEyeX 数据集由重庆交通大学交通运输学院徐进教授团队公开提供\cite{C17}，特此致谢。
 
 % ── 参考文献 ──
 \bibliographystyle{elsarticle-num}

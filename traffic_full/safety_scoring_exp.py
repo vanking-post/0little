@@ -34,7 +34,19 @@ METRICS = [
     {'name': 'OL_PET',       'col': 'OL_PET',        'w': 0.15, 'k': 12.0,
      'valid': lambda v: ~np.isinf(v) & ~np.isnan(v) & (v > 0)},
 ]
-
+# ---------- 指标配置（变道车辆）当前使用：专家经验权重2 ----------
+# METRICS = [
+#     {'name': 'mTTC',         'col': 'mTTC',         'w': 0.25, 'k': 20.80,
+#      'valid': lambda v: (v > 0)},
+#     {'name': 'THW',          'col': 'Time_Headway',  'w': 0.2, 'k': 6.30,
+#      'valid': lambda v: (v > 0)},
+#     {'name': 'PET',          'col': 'PET',           'w': 0.2, 'k': 5.30,
+#      'valid': lambda v: ~np.isinf(v) & ~np.isnan(v) & (v > 0)},
+#     {'name': 'F_ETTC',       'col': 'F_ETTC',        'w': 0.2, 'k': 25.0,
+#      'valid': lambda v: (v > 0)},
+#     {'name': 'OL_PET',       'col': 'OL_PET',        'w': 0.15, 'k': 7.3,
+#      'valid': lambda v: ~np.isinf(v) & ~np.isnan(v) & (v > 0)},
+# ]
 # ---------- 指标配置（跟驰车辆）当前使用：专家经验权重 ----------
 FOLLOWING_METRICS = [
     {'name': 'mTTC',    'col': 'mTTC',    'w': 0.4, 'k': 12.0,
@@ -56,6 +68,18 @@ FOLLOWING_METRICS = [
 #     {'name': 'F_ETTC',       'col': 'F_ETTC',        'w': 0.356, 'k': 12.0,
 #      'valid': lambda v: (v > 0)},
 #     {'name': 'OL_PET',       'col': 'OL_PET',        'w': 0.183, 'k': 12.0,
+#      'valid': lambda v: ~np.isinf(v) & ~np.isnan(v) & (v > 0)},
+# ]
+# METRICS = [
+#     {'name': 'mTTC',         'col': 'mTTC',         'w': 0.247, 'k': 20.8,
+#      'valid': lambda v: (v > 0)},
+#     {'name': 'THW',          'col': 'Time_Headway',  'w': 0.083, 'k': 6.3,
+#      'valid': lambda v: (v > 0)},
+#     {'name': 'PET',          'col': 'PET',           'w': 0.131, 'k': 5.3,
+#      'valid': lambda v: ~np.isinf(v) & ~np.isnan(v) & (v > 0)},
+#     {'name': 'F_ETTC',       'col': 'F_ETTC',        'w': 0.356, 'k': 25.0,
+#      'valid': lambda v: (v > 0)},
+#     {'name': 'OL_PET',       'col': 'OL_PET',        'w': 0.183, 'k': 7.3,
 #      'valid': lambda v: ~np.isinf(v) & ~np.isnan(v) & (v > 0)},
 # ]
 #

@@ -51,7 +51,7 @@ for idx, (fp, loc_name) in enumerate(loc_files):
     x = np.linspace(v.min(), v.max(), 200)
     pdf = stats.norm.pdf(x, mu, sigma)
     ax.plot(x, pdf, 'r-', linewidth=2, alpha=0.8,
-            label=f'正态拟合 μ={mu:.1f} σ={sigma:.1f}')
+            label=f'Normal fit μ={mu:.1f} σ={sigma:.1f}')
 
     # 标注 V85
     v85 = np.percentile(v, 85)
@@ -198,10 +198,10 @@ for idx, loc_name in enumerate(LOC_DIRS):
         sigma = np.sqrt(gmm.covariances_[ci, 0, 0])
         comp_pdf = w * stats.norm.pdf(x, mu, sigma)
         ax.plot(x, comp_pdf, '--', color=colors[i], linewidth=1.5, alpha=0.7)
-        labels.append(f'分量{i+1} w={w:.2f} μ={mu:.1f} σ={sigma:.1f}')
+        labels.append(f'Comp{i+1} w={w:.2f} μ={mu:.1f} σ={sigma:.1f}')
         pdf_total += comp_pdf
-    ax.plot(x, pdf_total, 'r-', linewidth=2, alpha=0.8, label='混合分布')
-    ax.legend(labels + ['混合分布'], fontsize=7)
+    ax.plot(x, pdf_total, 'r-', linewidth=2, alpha=0.8, label='Mixture')
+    ax.legend(labels + ['Mixture'], fontsize=7)
 
     v85 = np.percentile(v, 85)
     ax.axvline(v85, color='#e74c3c', linewidth=1.5, linestyle='--', alpha=0.7)
@@ -212,7 +212,7 @@ for idx, loc_name in enumerate(LOC_DIRS):
 
     ax.set_xlabel('Velocity (km/h)', fontsize=10)
     ax.set_ylabel('Density', fontsize=10)
-    ax.set_title(f'{loc_name} 跟驰车辆速度分布 (n={len(v)})', fontsize=13, fontweight='bold')
+    ax.set_title(f'{loc_name} Following vehicle velocity distribution (n={len(v)})', fontsize=13, fontweight='bold')
 
     # 各场景 X 轴范围
     xlim_map = {
@@ -242,7 +242,7 @@ METRICS_FOLLOW = {
 for metric_name, cfg in METRICS_FOLLOW.items():
     col = cfg['column']
     fig, axes = plt.subplots(5, 1, figsize=(10, 22))
-    fig.suptitle(f'跟驰车辆 {cfg["label"]} 分布', fontsize=16, fontweight='bold', y=1.01)
+    fig.suptitle(f'Following vehicle {cfg["label"]} distribution', fontsize=16, fontweight='bold', y=1.01)
 
     for idx, loc_name in enumerate(LOC_DIRS):
         ax = axes[idx]
@@ -278,10 +278,10 @@ for metric_name, cfg in METRICS_FOLLOW.items():
             sigma = np.sqrt(gmm.covariances_[ci, 0, 0])
             comp_pdf = w * stats.norm.pdf(x_fit, mu, sigma)
             ax.plot(x_fit, comp_pdf, '--', color=colors[i], linewidth=1.5, alpha=0.7)
-            labels.append(f'分量{i+1} w={w:.2f} μ={mu:.2f} σ={sigma:.2f}')
+            labels.append(f'Comp{i+1} w={w:.2f} μ={mu:.2f} σ={sigma:.2f}')
             pdf_total += comp_pdf
-        ax.plot(x_fit, pdf_total, 'r-', linewidth=2, alpha=0.8, label='混合分布')
-        ax.legend(labels + ['混合分布'], fontsize=7)
+        ax.plot(x_fit, pdf_total, 'r-', linewidth=2, alpha=0.8, label='Mixture')
+        ax.legend(labels + ['Mixture'], fontsize=7)
 
         # 15% / 50% / 85% 分位线
         p15 = np.percentile(vals, 15)

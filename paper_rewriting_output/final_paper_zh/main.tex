@@ -154,7 +154,7 @@ P_{ij} = \frac{X_{ij}}{\sum_{i=1}^{n} X_{ij}}
 
 \textbf{Step 4 — 权重归一化。} $w_j=D_j/\sum_k D_k$，满足 $\sum w_j=1$。
 
-EWM 权重仅依赖 5 项 SSM 指标的风险激活值矩阵 $\mathbf{X}$，完全不访问模型训练所用的 60 维样本特征和风险标签，保证了权重标定的统计独立性和可复现性。由上述流程得出的变道车辆权重为 $\{w_j\}^{5}_{j=1} = \{0.247, 0.083, 0.131, 0.356, 0.183\}$（mTTC/THW/PET/F\_ETTC\newline/OL\_PET），跟驰车辆权重为 $\{0.463, 0.114, 0.423\}$（mTTC/THW/B\_mTTC）。值得关注的是 F\_ETTC 获得了最高权重（0.356），显著高于其经验估计值（0.20），表明前向扩展碰撞时间在变道车辆间具有最大的判别力差异——即不同变道事件中前向碰撞风险的异质性远超其他四个指标；而 THW 仅获 0.083，说明车头时距的分布在车辆间高度集中（$E_j$ 接近 1），提供的额外判别信息有限。
+EWM 权重仅依赖 5 项 SSM 指标的风险激活值矩阵 $\mathbf{X}$，完全不访问模型训练所用的 60 维样本特征和风险标签，保证了权重标定的统计独立性和可复现性。由上述流程得出的变道车辆权重为 $\{w_j\}^{5}_{j=1} = \{0.247, 0.083, 0.131, 0.356, 0.183\}$（mTTC/THW/PET/F\_ETTC\newline/OL\_PET），跟驰车辆权重为 $\{0.463, 0.114, 0.423\}$（mTTC/THW/B\_mTTC）。值得关注的是 F\_ETTC 获得了最高权重（0.356），显著高于其经验估计值（0.20），表明前向扩展碰撞时间在变道车辆间具有最大的判别力差异——即不同变道事件中前向碰撞风险的异质性远超其他四个指标；而 THW 仅获 0.083，说明车头时距的分布在车辆间高度集中（$E_j$ 接近 1），单独权重较小。
 
 \subsubsection{变道场景的车辆交互关系}
 
@@ -203,7 +203,7 @@ EWM 权重仅依赖 5 项 SSM 指标的风险激活值矩阵 $\mathbf{X}$，完�
 
 $\cos\theta$ 项剔除横向速度分量中不与自车-前车连线方向重合的部分，使得 F\_ETTC 等价于沿碰撞危险方向投影后的碰撞时间。
 
-\textbf{(5) 超越车道侵入后时间（OL\_PET）。} 针对相邻车道变道场景，度量变道车辆（SV）跨越车道线的时刻与原车道后车（FV）到达同一变道点的时间差：
+\textbf{(5) 原车道后车侵入时间（OL\_PET）。} 针对相邻车道变道场景，度量变道车辆（SV）跨越车道线的时刻与原车道后车（FV）到达同一变道点的时间差：
 
 \begin{equation}
 \text{OL\_PET} = t_{\text{FV}} - t_{\text{LC}}
@@ -223,7 +223,46 @@ S_{\text{LC}}(t) = K \cdot \sum_{i \in \mathcal{M}} w_i \cdot \exp\!\left(-\frac
 S_{\text{LC}} = K \cdot \sum_{i \in \mathcal{M}} w_i \cdot \max_{t \in [1,\,75]}\;\exp\!\left(-\frac{v_i(t)}{k_i}\right)
 \end{equation}
 
-式(6)为逐帧风险分，式(7)为单辆车最终风险分（取各指标全窗口最危险帧的最大贡献再求和）。$\mathcal{M} = \{\text{mTTC}, \text{THW}, \text{PET}, \text{F\_ETTC}, \text{OL\_PET}\}$，EWM 客观权重 $\{w_i\} = \{0.247, 0.083, 0.131, 0.356, 0.183\}$（标准 EWM 计算结果，非调参）。$K$ 为下节定义的速度修正因子。
+式(8)为逐帧风险分，式(9)为单辆车最终风险分（取各指标全窗口最危险帧的最大贡献再求和）。$\mathcal{M} = \{\text{mTTC}, \text{THW}, \text{PET}, \text{F\_ETTC}, \text{OL\_PET}\}$，EWM 客观权重 $\{w_i\} = \{0.247, 0.083, 0.131, 0.356, 0.183\}$。$K$ 为下节定义的速度修正因子。
+
+\subsubsection{替代安全指标的实测分布特征}
+
+为进一步验证五项 SSM 指标的统计分布特性及其对应的风险判别能力，对全量 1,574 辆变道车辆的 118,050 帧轨迹数据（每车 75 帧）进行概率分布拟合与危险区间占比统计。图~\ref{fig:ssm_distributions} 展示了 THW、PET、OL\_PET、mTTC 和 F\_ETTC 五项指标的实测分布直方图及最优拟合曲线。各指标均标注了 2 s 危险阈值（红色虚线）、5 s 谨慎阈值（黄色虚线）及均值线。
+
+\begin{figure}[H]
+\centering
+\begin{subfigure}{0.32\textwidth}
+\centering\includegraphics[width=\textwidth]{dist_F_ETTC_hist.png}
+\caption{F\_ETTC}
+\end{subfigure}
+\hfill
+\begin{subfigure}{0.32\textwidth}
+\centering\includegraphics[width=\textwidth]{dist_PET.png}
+\caption{PET}
+\end{subfigure}
+\hfill
+\begin{subfigure}{0.32\textwidth}
+\centering\includegraphics[width=\textwidth]{dist_OL_PET.png}
+\caption{OL\_PET}
+\end{subfigure}
+
+\vspace{6pt}
+
+\begin{subfigure}{0.48\textwidth}
+\centering\includegraphics[width=\textwidth]{dist_mTTC.png}
+\caption{mTTC}
+\end{subfigure}
+\hfill
+\begin{subfigure}{0.48\textwidth}
+\centering\includegraphics[width=\textwidth]{dist_Time_Headway.png}
+\caption{THW}
+\end{subfigure}
+\caption{五项替代安全指标的实测帧级分布。直方图为实测值，深灰实线为最优拟合曲线，浅灰虚线为备选拟合；红色虚线为 2 s 危险阈值，黄色虚线为 5 s 谨慎阈值。}\label{fig:ssm_distributions}
+\end{figure}
+
+五项指标均呈现典型的右偏分布，符合交通冲突数据"多数样本安全、少数样本危险"的普遍规律。其中四项以对数正态分布为最优拟合，与交通流参数（车头时距、冲突时间）的经典统计特征一致\cite{C18}。从危险区间占比（$<$2 s）可区分两类风险等级：（1）\textbf{紧迫型}——THW（中位数 1.61 s），超六成帧处于 2 s 危险线以内，表明变道过程中跟车行为整体偏紧，是变道风险最核心的驱动指标；（2）\textbf{中低紧迫型}——PET（中位数 2.08 s）、OL\_PET（中位数 2.88 s）、mTTC（非零中位数 9.00 s）和 F\_ETTC（非零中位数 27.14 s）。其中 PET 中位数紧贴危险阈值，对冲突紧迫性具有次高灵敏度；OL\_PET 反映换道越线对原车道后车的时间压迫程度中等；mTTC 和 F\_ETTC 的危险区间占比极低——mTTC 因加速度修正项在减速避险场景中可显著增大碰撞时间估值，削弱分布尾部极端值聚集，是五项指标中唯一以伽马分布为最优拟合的指标；F\_ETTC 的非零帧占比仅 26.8\%，其宽幅分布表明将碰撞时间拓展至二维平面后，综合危险方向的逼近速率整体低于纯纵向情形。
+
+风险紧迫性排序 $\text{THW} > \text{PET} > \text{OL\_PET} \gg \text{F\_ETTC} > \text{mTTC}$ 表明了不同指标的判别力差异。这一分布特征直接影响了后续衰减常数 $k_i$ 的取值策略：对紧迫型指标（THW）需在常见危险区间（0$\sim$5 s）内保持足够分辨率，故取 $k=6$ s；对中低紧迫型指标（PET、OL\_PET、mTTC、F\_ETTC）则以更大的 $k$ 值拓展有效响应区间。
 
 \subsubsection{衰减常数 $k_i$ 的标定}
 
@@ -563,10 +602,11 @@ SHAP 分析揭示的"普适性因子（Time\_Headway）与条件性因子（B\_D
 \section{附注}
 实验配置：XGBoost：500棵基学习器，最大树深5，学习率0.05，列采样率0.8，早停轮次20，多类softmax目标函数。RF：300棵决策树，最大树深10，最小叶节点样本数4，class\_weight=`balanced'。MLP：两层隐藏层（64$\to$32神经元），ReLU激活，自适应学习率，早停正则化，StandardScaler标准化。LSTM：两层循环网络（64$\to$32神经元），25\% Dropout，Adam优化器（初始学习率$5\times10^{-4}$），早停耐心值15。
 
+实验硬件环境：CPU AMD Ryzen~5~7500F，GPU NVIDIA GeForce~RTX~4060~Ti（8~GB 显存），内存 32~GB DDR5（2$\times$16~GB），操作系统 Windows~11。软件环境：Python~3.10，TensorFlow~2.10.1（CUDA~11.2 / cuDNN~8）。
+
 % ── 致谢 ──
 \section*{致谢}
-本研究使用的 CQSkyEyeX 数据集由重庆交通大学交通运输学院徐进教授团队公开提供\cite{C17}，特此致谢。\par
-本研究得到国家自然科学基金面上项目（52372366）资助。
+本研究使用的 CQSkyEyeX 数据集由重庆交通大学交通运输学院徐进教授团队公开提供\cite{C17}，特此致谢。
 
 % ── 参考文献 ──
 \bibliographystyle{elsarticle-num}
