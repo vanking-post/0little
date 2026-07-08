@@ -286,7 +286,7 @@ def run_kmeans_threshold():
 
 
 def _plot_kmeans_thresholds(results):
-    """绘制 K-means 聚类结果"""
+    """绘制 K-means 聚类结果（跟驰含低分放大窗）"""
     import matplotlib
     matplotlib.use('Agg')
     import matplotlib.pyplot as plt
@@ -335,6 +335,37 @@ def _plot_kmeans_thresholds(results):
                    label=f'Current mid={cur["mid"]:.2f}')
         ax.axvline(cur['high'], color='red', linestyle='-', linewidth=1, alpha=0.6,
                    label=f'Current high={cur["high"]:.2f}')
+
+        # ── 低分区域放大窗（跟驰主峰密集区） ──
+        zoom_xmax = centers[1] + (centers[1] - centers[0]) * 0.5  # 到中风险中心偏左
+        zoom_scores = scores[scores <= zoom_xmax]
+        if len(zoom_scores) > 0:
+            # inset 位置：右内侧 [left, bottom, width, height] (axes coords)
+            ax_inset = ax.inset_axes([0.55, 0.18, 0.42, 0.32])
+
+            bins_zoom = min(30, max(10, int(len(zoom_scores) / 50)))
+            ax_inset.hist(zoom_scores, bins=bins_zoom, color='gray',
+                          alpha=0.5, edgecolor='white', density=True)
+
+            # 低分区 KDE
+            try:
+                kde_z = gaussian_kde(zoom_scores)
+                zs = np.linspace(zoom_scores.min(), zoom_scores.max(), 150)
+                ax_inset.plot(zs, kde_z(zs), 'k-', linewidth=1.2, alpha=0.7)
+            except Exception:
+                pass
+
+            # 低风险聚类中心 + K-means mid 阈值
+            ax_inset.axvline(centers[0], color=colors[0], linestyle='--',
+                             linewidth=1.2, alpha=0.8)
+            ax_inset.axvline(thresh['mid'], color='navy', linestyle=':',
+                             linewidth=1.2)
+
+            ax_inset.set_xlim(zoom_scores.min(), zoom_xmax)
+            ax_inset.set_xlabel('Risk Score (zoomed)', fontsize=7)
+            ax_inset.set_ylabel('Density', fontsize=7)
+            ax_inset.tick_params(labelsize=6)
+            ax_inset.grid(axis='y', alpha=0.3)
 
         counts = res['counts']
         n = len(scores)
