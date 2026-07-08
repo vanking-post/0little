@@ -734,7 +734,7 @@ def plot_weight_analysis(locs, base_dir='E:/0little'):
         ax.set_xticklabels(names, fontsize=10)
         ax.set_ylabel('Weight', fontsize=11)
         ax.set_title(f'{sc_name} — Weight Comparison', fontsize=13, fontweight='bold')
-        ax.set_ylim(0, 0.9)
+        ax.set_ylim(0, 0.7)
         ax.legend(fontsize=7, ncol=2, loc='upper right')
         ax.grid(axis='y', alpha=0.3)
 
