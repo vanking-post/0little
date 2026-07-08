@@ -308,16 +308,20 @@ def _plot_kmeans_thresholds(results):
 
         ax = axes[ax_idx]
 
-        # Histogram
-        ax.hist(scores, bins=50, color='gray', alpha=0.35, edgecolor='white', density=True)
+        zoom_xmax = 0.02
+        main_scores = scores[scores > zoom_xmax]
+        zoom_scores = scores[scores <= zoom_xmax]
 
-        # KDE curve
+        # Main histogram (exclude 0-0.02 region)
+        ax.hist(main_scores, bins=50, color='gray', alpha=0.35, edgecolor='white', density=True)
+
+        # KDE curve (on main_scores only)
         try:
-            kde = gaussian_kde(scores)
-            xs = np.linspace(scores.min(), scores.max(), 200)
+            kde = gaussian_kde(main_scores)
+            xs = np.linspace(main_scores.min(), main_scores.max(), 200)
             ax.plot(xs, kde(xs), 'k-', linewidth=1.5, alpha=0.7)
         except Exception:
-            xs = np.linspace(scores.min(), scores.max(), 200)
+            pass
 
         # Cluster centers (dashed colored lines)
         for i, c in enumerate(centers):
@@ -336,29 +340,29 @@ def _plot_kmeans_thresholds(results):
         ax.axvline(cur['high'], color='red', linestyle='-', linewidth=1, alpha=0.6,
                    label=f'Current high={cur["high"]:.2f}')
 
-        # ── 低分区域放大窗（0-0.02 密集区） ──
-        zoom_xmax = 0.02
-        zoom_scores = scores[scores <= zoom_xmax]
+        # ── 低分区域放大窗（0-0.02 百分比柱状图） ──
         if len(zoom_scores) > 0:
-            # inset 位置：右内侧 [left, bottom, width, height] (axes coords)
             ax_inset = ax.inset_axes([0.55, 0.18, 0.42, 0.32])
 
-            bins_zoom = min(30, max(10, int(len(zoom_scores) / 30)))
-            ax_inset.hist(zoom_scores, bins=bins_zoom, color='gray',
-                          alpha=0.5, edgecolor='white', density=True)
+            bins_zoom = min(20, max(5, int(len(zoom_scores) / 50)))
+            counts, edges = np.histogram(zoom_scores, bins=bins_zoom, range=(0, zoom_xmax))
+            pcts = counts / len(scores) * 100  # 百分比
+            centers_bins = (edges[:-1] + edges[1:]) / 2
+            widths = np.diff(edges)
 
-            # 低分区 KDE
-            try:
-                kde_z = gaussian_kde(zoom_scores)
-                zs = np.linspace(0, zoom_xmax, 150)
-                ax_inset.plot(zs, kde_z(zs), 'k-', linewidth=1.2, alpha=0.7)
-            except Exception:
-                pass
+            ax_inset.bar(centers_bins, pcts, width=widths * 0.9,
+                         color='gray', alpha=0.6, edgecolor='white')
 
-            # 低风险聚类中心 + K-means mid 阈值
-            ax_inset.axvline(centers[0], color=colors[0], linestyle='--',
-                             linewidth=1.2, alpha=0.8)
+            n_zoom = len(zoom_scores)
+            ax_inset.text(0.95, 0.95, f'n={n_zoom}\n({n_zoom/len(scores)*100:.1f}%)',
+                          transform=ax_inset.transAxes, va='top', ha='right',
+                          fontsize=7, bbox=dict(boxstyle='round', facecolor='white', alpha=0.8))
+
             ax_inset.set_xlim(0, zoom_xmax)
+            ax_inset.set_xlabel('Risk Score', fontsize=7)
+            ax_inset.set_ylabel('% of total', fontsize=7)
+            ax_inset.tick_params(labelsize=6)
+            ax_inset.grid(axis='y', alpha=0.3)
             ax_inset.set_xlabel('Risk Score (zoomed)', fontsize=7)
             ax_inset.set_ylabel('Density', fontsize=7)
             ax_inset.tick_params(labelsize=6)
