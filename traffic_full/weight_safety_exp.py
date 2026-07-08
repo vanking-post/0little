@@ -640,6 +640,186 @@ def run_combined_analysis(locs, base_dir='E:/0little',
     return results
 
 
+# ── 权重对比可视化 ──
+
+
+def plot_weight_analysis(locs, base_dir='E:/0little'):
+    """生成权重对比图（柱状图 + 相关系数热力图 + 权重差异热力图）"""
+    import matplotlib
+    matplotlib.use('Agg')
+    import matplotlib.pyplot as plt
+    import matplotlib.ticker as mticker
+    from matplotlib.colors import LinearSegmentedColormap
+
+    out_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                           'weight_sensitivity')
+    os.makedirs(out_dir, exist_ok=True)
+
+    # ── 收集数据 ──
+    all_data = {}
+    for data_type, cfg, matrix in [
+        ('lc', METRICS, LC_AHP_MATRIX),
+        ('fl', FOLLOWING_METRICS, FL_AHP_MATRIX)
+    ]:
+        if data_type == 'lc':
+            files = []
+            for loc_key in locs:
+                for side in ['left', 'right']:
+                    fp = os.path.normpath(
+                        os.path.join(base_dir, loc_key, f'traffic_{side}_change.csv'))
+                    if os.path.exists(fp):
+                        files.append(fp)
+        else:
+            files = []
+            for loc_key in locs:
+                fp = os.path.normpath(
+                    os.path.join(base_dir, loc_key, 'traffic_following_change.csv'))
+                if os.path.exists(fp):
+                    files.append(fp)
+
+        if not files:
+            continue
+
+        X, names = build_activation_matrix(files, cfg)
+        w_exp = np.array([m['w'] for m in cfg])
+        w_ewm, _, _ = compute_ewm_weights(X)
+        w_critic, _, _, corr_m = compute_critic_weights(X)
+        w_ahp, _, _, _ = compute_ahp_weights(matrix)
+        combo = compute_combined_weights(
+            {'EWM': w_ewm, 'CRITIC': w_critic, 'AHP': w_ahp})
+
+        all_data[data_type] = {
+            'names': names,
+            'weights': {
+                'Expert': w_exp, 'EWM': w_ewm, 'CRITIC': w_critic,
+                'AHP': w_ahp,
+                'Multiplicative': combo['multiplicative'],
+                'MeanDev': combo['min_deviation'],
+            },
+            'corr_matrix': corr_m,
+        }
+
+    # ── 1. 分组柱状图 ──
+    fig, axes = plt.subplots(1, 2, figsize=(14, 5))
+    method_order = ['Expert', 'EWM', 'CRITIC', 'AHP', 'Multiplicative', 'MeanDev']
+    method_colors = ['#2c3e50', '#3498db', '#1abc9c', '#e67e22', '#9b59b6', '#e84393']
+
+    for ax_idx, (data_type, sc_name) in enumerate(
+            [('lc', 'Lane Change'), ('fl', 'Following')]):
+        ax = axes[ax_idx]
+        d = all_data.get(data_type)
+        if d is None:
+            ax.text(0.5, 0.5, 'No data', ha='center', va='center')
+            continue
+
+        names = d['names']
+        weights = d['weights']
+        x = np.arange(len(names))
+        n_methods = len(method_order)
+        bar_width = 0.12
+        offsets = np.linspace(-bar_width * (n_methods - 1) / 2,
+                               bar_width * (n_methods - 1) / 2, n_methods)
+
+        for i, method in enumerate(method_order):
+            vals = weights[method]
+            bars = ax.bar(x + offsets[i], vals, bar_width,
+                          color=method_colors[i], alpha=0.85,
+                          label=method, edgecolor='white', linewidth=0.5)
+            # 在柱子上方标注数值
+            for j, v in enumerate(vals):
+                ax.text(x[j] + offsets[i], v + 0.01, f'{v:.3f}',
+                        ha='center', va='bottom', fontsize=5.5, rotation=45)
+
+        ax.set_xticks(x)
+        ax.set_xticklabels(names, fontsize=10)
+        ax.set_ylabel('Weight', fontsize=11)
+        ax.set_title(f'{sc_name} — Weight Comparison', fontsize=13, fontweight='bold')
+        ax.set_ylim(0, 0.9)
+        ax.legend(fontsize=7, ncol=2, loc='upper right')
+        ax.grid(axis='y', alpha=0.3)
+
+    plt.tight_layout()
+    path = os.path.join(out_dir, 'weight_comparison_bar.png')
+    plt.savefig(path, dpi=150, bbox_inches='tight')
+    plt.close()
+    print(f'  Saved: {path}')
+
+    # ── 2. 相关系数矩阵热力图 ──
+    for data_type, sc_name in [('lc', 'Lane Change'), ('fl', 'Following')]:
+        d = all_data.get(data_type)
+        if d is None:
+            continue
+
+        fig, ax = plt.subplots(figsize=(5.5, 4.5))
+        corr = d['corr_matrix']
+        names = d['names']
+        im = ax.imshow(corr, cmap='RdBu_r', vmin=-0.2, vmax=1.0, aspect='equal')
+
+        for i in range(len(names)):
+            for j in range(len(names)):
+                ax.text(j, i, f'{corr[i, j]:.4f}',
+                        ha='center', va='center', fontsize=9,
+                        color='white' if abs(corr[i, j]) > 0.5 else 'black')
+
+        ax.set_xticks(range(len(names)))
+        ax.set_yticks(range(len(names)))
+        ax.set_xticklabels(names, fontsize=9)
+        ax.set_yticklabels(names, fontsize=9)
+        ax.set_title(f'{sc_name} — Metric Correlation Matrix', fontsize=12, fontweight='bold')
+        fig.colorbar(im, ax=ax, shrink=0.8, label="Pearson's r")
+
+        plt.tight_layout()
+        path = os.path.join(out_dir, f'weight_corr_{data_type}.png')
+        plt.savefig(path, dpi=150, bbox_inches='tight')
+        plt.close()
+        print(f'  Saved: {path}')
+
+    # ── 3. 权重差异热力图（各方法 vs Expert） ──
+    for data_type, sc_name in [('lc', 'Lane Change'), ('fl', 'Following')]:
+        d = all_data.get(data_type)
+        if d is None:
+            continue
+
+        names = d['names']
+        weights = d['weights']
+        w_exp = weights['Expert']
+
+        diff_data = {}
+        for method in method_order:
+            if method == 'Expert':
+                continue
+            diff_data[method] = weights[method] - w_exp
+
+        diff_df = np.array([diff_data[m] for m in method_order if m != 'Expert'])
+
+        fig, ax = plt.subplots(figsize=(max(5, len(names) * 1.2 + 1),
+                                         max(3.5, len(method_order) * 0.7)))
+        vmax = max(abs(diff_df.min()), abs(diff_df.max()))
+        im = ax.imshow(diff_df, cmap='RdYlBu_r', vmin=-vmax, vmax=vmax, aspect='auto')
+
+        for i in range(len(method_order) - 1):
+            for j in range(len(names)):
+                val = diff_df[i, j]
+                ax.text(j, i, f'{val:+.3f}',
+                        ha='center', va='center', fontsize=9,
+                        color='white' if abs(val) > vmax * 0.6 else 'black')
+
+        ax.set_xticks(range(len(names)))
+        ax.set_yticks(range(len(method_order) - 1))
+        ax.set_xticklabels(names, fontsize=9)
+        ax.set_yticklabels([m for m in method_order if m != 'Expert'], fontsize=8)
+        ax.set_title(f'{sc_name} — Weight Difference vs Expert', fontsize=12, fontweight='bold')
+        fig.colorbar(im, ax=ax, shrink=0.8, label='Δ Weight')
+
+        plt.tight_layout()
+        path = os.path.join(out_dir, f'weight_diff_{data_type}.png')
+        plt.savefig(path, dpi=150, bbox_inches='tight')
+        plt.close()
+        print(f'  Saved: {path}')
+
+    print(f'\n  所有权重对比图已保存至: {out_dir}')
+
+
 if __name__ == '__main__':
     locs_test = {f'location{i}': f'E:/0little/location{i}' for i in range(1, 6)}
 
@@ -656,3 +836,6 @@ if __name__ == '__main__':
     run_combined_analysis(locs_test,
                            critic_results=critic_results,
                            ahp_results=ahp_results)
+
+    # ── 权重对比图 ──
+    plot_weight_analysis(locs_test)
