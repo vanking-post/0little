@@ -10,6 +10,8 @@ import pandas as pd
 import numpy as np
 import os
 
+import sys, os
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'traffic_full'))
 from safety_scoring import worst_cat
 from safety_scoring_exp import risk_score as exp_risk_score, risk_label as exp_risk_label
 
@@ -55,7 +57,7 @@ LOCS = {
     },
 }
 
-OUT_DIR = 'E:/0little/traffic_full/vis_all'
+OUT_DIR = os.path.join('E:/0little/data_statistics', 'visualize_per_vehicle_all_output')
 os.makedirs(OUT_DIR, exist_ok=True)
 
 
@@ -191,36 +193,42 @@ def panel_acceleration(ax, veh_sample):
     ax.set_title('纵/横向加速度', fontsize=13, fontweight='bold')
 
 
+def _mask_nan(arr):
+    """将距离数组中 <=0 或非有限的数值设为 NaN，使 matplotlib 自动断开线段"""
+    arr = arr.astype(float)
+    return np.where((arr > 0) & np.isfinite(arr), arr, np.nan)
+
+
 def panel_surrounding(ax, veh_sample, side='left'):
     frames = veh_sample['Frame'].values
 
-    # 前车距 — 绿色（同车道前车）
-    fd = veh_sample['Following_dist'].values
-    if fd.max() > 0:
-        ax.plot(frames, fd, color='#27ae60', linewidth=3.0, marker='o', markersize=2.5, label='前车距')
+    # 前车距 — 绿色
+    fd = _mask_nan(veh_sample['Following_dist'].values)
+    if not np.all(np.isnan(fd)):
+        ax.plot(frames, fd, color='#27ae60', linewidth=2.0, marker='o', markersize=1.5, alpha=0.8, label='前车距')
 
-    # 后车距 — 橙色（同车道后车）
-    bd = veh_sample['B_Dist'].values
-    if bd.max() > 0:
-        ax.plot(frames, bd, color='#e67e22', linewidth=3.0, marker='o', markersize=2.5, label='后车距')
+    # 后车距 — 橙色
+    bd = _mask_nan(veh_sample['B_Dist'].values)
+    if not np.all(np.isnan(bd)):
+        ax.plot(frames, bd, color='#e67e22', linewidth=2.0, marker='o', markersize=1.5, alpha=0.8, label='后车距')
 
     # 目标车道前距 — 粉色（按变道方向选 LF_Dist 或 RF_Dist）
-    targ_front_col = 'LF_Dist' if side == 'left' else 'RF_Dist'
-    tfd = veh_sample[targ_front_col].values
-    if tfd.max() > 0:
-        ax.plot(frames, tfd, color='#e84393', linewidth=2.0, marker='o', markersize=2.0, label='目标车道前距')
+    tfc = 'LF_Dist' if side == 'left' else 'RF_Dist'
+    tfd = _mask_nan(veh_sample[tfc].values)
+    if not np.all(np.isnan(tfd)):
+        ax.plot(frames, tfd, color='#e84393', linewidth=2.0, marker='o', markersize=1.5, alpha=0.8, label='目标车道前距')
 
     # 目标车道后距 — 紫色（按变道方向选 LB_Dist 或 RB_Dist）
-    targ_rear_col = 'LB_Dist' if side == 'left' else 'RB_Dist'
-    trd = veh_sample[targ_rear_col].values
-    if trd.max() > 0:
-        ax.plot(frames, trd, color='#8e44ad', linewidth=2.0, marker='o', markersize=2.0, label='目标车道后距')
+    trc = 'LB_Dist' if side == 'left' else 'RB_Dist'
+    trd = _mask_nan(veh_sample[trc].values)
+    if not np.all(np.isnan(trd)):
+        ax.plot(frames, trd, color='#8e44ad', linewidth=2.0, marker='o', markersize=1.5, alpha=0.8, label='目标车道后距')
 
     # 目标车道侧距 — 深蓝色（按变道方向选 LS_Dist 或 RS_Dist）
-    targ_side_col = 'LS_Dist' if side == 'left' else 'RS_Dist'
-    tsd = veh_sample[targ_side_col].values
-    if tsd.max() > 0:
-        ax.plot(frames, tsd, color='#1a5276', linewidth=2.0, marker='o', markersize=2.0, label='目标车道侧距')
+    tsc = 'LS_Dist' if side == 'left' else 'RS_Dist'
+    tsd = _mask_nan(veh_sample[tsc].values)
+    if not np.all(np.isnan(tsd)):
+        ax.plot(frames, tsd, color='#1a5276', linewidth=2.0, marker='o', markersize=1.5, alpha=0.8, label='目标车道侧距')
 
     ax.set_xlabel('Frame', fontsize=11)
     ax.set_ylabel('Distance (m)', fontsize=11)
@@ -314,7 +322,7 @@ def panel_velocity_components(ax, veh_sample):
 # worst_cat — safety_scoring 模块; risk_score/risk_label — safety_scoring_exp 模块
 
 
-def panel_risk_summary(ax, veh_sample, loc_name=''):
+def panel_risk_summary(ax, veh_sample, loc_name='', scenario='lane_change'):
     ax.axis('off')
     cats = {
         'F_ETTC': worst_cat(veh_sample['F_ETTC_cat']) if 'F_ETTC_cat' in veh_sample.columns else 'safe',
@@ -327,7 +335,7 @@ def panel_risk_summary(ax, veh_sample, loc_name=''):
     has_front = bool(row0.get('has_front_vehicle', False))
     has_rear = bool(row0.get('has_rear_vehicle', False))
     score = exp_risk_score(veh_sample, v0_kmh=80 if loc_name=='location5' else 100)
-    overall, overall_color = exp_risk_label(score, 'lane_change')
+    overall, overall_color = exp_risk_label(score, scenario)
 
     col_labels = ['指标', '分类', '含义']
     cell_text = []
@@ -365,7 +373,7 @@ def panel_risk_summary(ax, veh_sample, loc_name=''):
 
 # ==================== 主绘制函数 ====================
 def plot_one_vehicle(fig, axes, vid, veh_sample, veh_traj, curves, x_range,
-                     smooth_df=None, side='left', loc_name=''):
+                     smooth_df=None, side='left', loc_name='', scenario='lane_change'):
     a = axes.flatten()
     src = veh_sample['Source'].iloc[0]
     panel_xy_trajectory(a[0], veh_traj, veh_sample, curves, x_range,
@@ -374,7 +382,7 @@ def plot_one_vehicle(fig, axes, vid, veh_sample, veh_traj, curves, x_range,
     panel_surrounding(a[2], veh_sample, side)
     panel_safety_metrics(a[3], veh_sample)
     panel_velocity_components(a[4], veh_sample)
-    panel_risk_summary(a[5], veh_sample, loc_name)
+    panel_risk_summary(a[5], veh_sample, loc_name, scenario)
 
 
 # ==================== 主流程 ====================

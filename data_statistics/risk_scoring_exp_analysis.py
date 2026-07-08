@@ -7,12 +7,12 @@ import matplotlib.pyplot as plt
 import pandas as pd
 import numpy as np
 import os, sys
-sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'traffic_full'))
 from safety_scoring_exp import risk_score, following_risk_score
 
 # ==================== 全局参数 ====================
 DATA_DIR = 'E:/0little/traffic_full'
-OUT_DIR = os.path.join(DATA_DIR, 'analysis')
+OUT_DIR = os.path.join('E:/0little/data_statistics', 'risk_scoring_exp_analysis_output')
 LOC_DIRS = ['location1', 'location2', 'location3', 'location4', 'location5']
 LOC_V0 = {'location5': 80}  # location5 基准速度 80km/h，其余默认 100
 

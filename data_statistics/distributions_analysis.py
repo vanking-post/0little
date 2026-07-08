@@ -18,7 +18,7 @@ from safety_scoring_exp import risk_score, following_risk_score, risk_label as r
 plt.rcParams['font.sans-serif'] = ['SimHei', 'Microsoft YaHei', 'DejaVu Sans']
 plt.rcParams['axes.unicode_minus'] = False
 
-OUT_DIR = os.path.join('E:/0little/traffic_full/analysis', 'distributions_analysis')
+OUT_DIR = os.path.join('E:/0little/data_statistics', 'distributions_analysis_output')
 os.makedirs(OUT_DIR, exist_ok=True)
 
 LOCS = {
@@ -615,6 +615,18 @@ def plot_risk_heatmap(df):
     df_all = pd.concat([df_lc, df_fl], ignore_index=True)
     n_high_risk = df_all['is_high_risk'].sum()
 
+    # Load lane coefficients from xlsx (fallback for locations without CSV)
+    import ast, re
+    xlsx_coeffs = {}
+    xlsx_path = os.path.join('E:/0little', 'lane_coeffs.xlsx')
+    if os.path.exists(xlsx_path):
+        xl = pd.read_excel(xlsx_path, sheet_name='Sheet1')
+        for _, row in xl.iterrows():
+            src = row['where']
+            matches = re.findall(r'\[[^\]]+\]', str(row['lane_coeffs']))
+            if matches:
+                xlsx_coeffs[src] = np.array([ast.literal_eval(m) for m in matches])
+
     # Individual heatmaps per location
     for loc_name in LOCS:
         loc_df = df_all[df_all['location'] == loc_name]
@@ -642,15 +654,28 @@ def plot_risk_heatmap(df):
         im = ax.imshow(h, cmap='hot_r', interpolation='bilinear', alpha=0.85,
                        aspect='auto', extent=extent, origin='lower')
 
-        coeffs_path = os.path.join(LOCS[loc_name], 'lane_coeffs.csv')
-        if os.path.exists(coeffs_path):
-            coeffs_df = pd.read_csv(coeffs_path)
+        # Try CSV first, then xlsx fallback
+        coeffs_list = None
+        coeffs_csv = os.path.join(LOCS[loc_name], 'lane_coeffs.csv')
+        if os.path.exists(coeffs_csv):
+            coeffs_df = pd.read_csv(coeffs_csv)
             first_src = coeffs_df['where'].iloc[0]
-            src_coeffs = coeffs_df[coeffs_df['where'] == first_src]
+            src_df = coeffs_df[coeffs_df['where'] == first_src]
+            coeffs_list = src_df[['a5','a4','a3','a2','a1','a0']].values
+        else:
+            # Fallback to xlsx
+            loc_num = loc_name.replace('location', '')
+            src_keys = sorted([k for k in xlsx_coeffs if k.startswith(f'{loc_num}-')])
+            if src_keys:
+                # Average across sources
+                all_arr = np.array([xlsx_coeffs[k] for k in src_keys])
+                # Each source: (8, 6); average all
+                coeffs_list = all_arr.reshape(-1, 6)  # flatten all curves
+
+        if coeffs_list is not None:
             x_line = np.linspace(x_min - x_pad, x_max + x_pad, 400)
-            for _, cr in src_coeffs.iterrows():
-                coeffs = [cr['a5'], cr['a4'], cr['a3'], cr['a2'], cr['a1'], cr['a0']]
-                y_line = np.polyval(coeffs, x_line)
+            for coeff in coeffs_list:
+                y_line = np.polyval(coeff, x_line)
                 ax.plot(x_line, y_line, color='white', linewidth=2.5, alpha=0.9)
                 ax.plot(x_line, y_line, color='#2c3e50', linewidth=0.8, linestyle='--', alpha=0.6)
 

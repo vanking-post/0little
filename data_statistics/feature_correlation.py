@@ -9,13 +9,13 @@ import pandas as pd
 import numpy as np
 import os
 import sys
-sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'traffic_full'))
 from safety_scoring import overall_risk, risk_label
 
 plt.rcParams['font.sans-serif'] = ['SimHei', 'Microsoft YaHei', 'DejaVu Sans']
 plt.rcParams['axes.unicode_minus'] = False
 
-OUT_DIR = 'E:/0little/traffic_full/analysis'
+OUT_DIR = os.path.join('E:/0little/data_statistics', 'feature_correlation_output')
 os.makedirs(OUT_DIR, exist_ok=True)
 
 LOCS = {

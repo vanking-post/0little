@@ -336,6 +336,10 @@ def process_location5():
     src_dir = os.path.join(BASE_READ, 'location5')
     out_dir = os.path.join(BASE_OUT, loc_name)
     os.makedirs(out_dir, exist_ok=True)
+    # 清除旧的跟驰数据
+    fl_old = os.path.join(out_dir, 'traffic_following_change.csv')
+    if os.path.exists(fl_old):
+        os.remove(fl_old)
 
     xlsx_path = os.path.join(src_dir, '5_trajectory.xlsx')
     csv_path = os.path.join(src_dir, '5_trajectory.csv')
@@ -574,7 +578,11 @@ def main():
                 continue
         print(f"  共 {len(csv_paths)} 个 CSV 就绪")
 
-        # Phase 2: 逐文件走流水线
+        # Phase 2: 逐文件走流水线——先清空旧的跟驰数据（防重复运行累积）
+        fl_old = os.path.join(out_dir, 'traffic_following_change.csv')
+        if os.path.exists(fl_old):
+            os.remove(fl_old)
+            print("    已清除旧的跟驰数据文件")
         print("\n[Phase 2] 流水线处理...")
         all_left, all_right, all_traj, all_smooth = [], [], [], []
         total_left_veh, total_right_veh = 0, 0

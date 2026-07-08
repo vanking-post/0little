@@ -11,7 +11,7 @@ from scipy import stats
 from sklearn.mixture import GaussianMixture
 
 DATA_DIR = 'E:/0little/traffic_full'
-OUT_DIR = os.path.join(DATA_DIR, 'analysis')
+OUT_DIR = os.path.join('E:/0little/data_statistics', 'plot_velocity_distribution_output')
 
 os.makedirs(OUT_DIR, exist_ok=True)
 
