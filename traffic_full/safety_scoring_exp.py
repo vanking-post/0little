@@ -11,6 +11,8 @@
 """
 
 import numpy as np
+import os
+import pandas as pd
 
 B = 1.3  # 速度修正参数
 
@@ -183,3 +185,181 @@ def risk_label(score, scenario='lane_change'):
     elif score >= t['mid']:
         return '中风险', '#f39c12'
     return '低风险', '#27ae60'
+
+
+# ── K-means 风险等级聚类（替代阈值标签）──
+
+
+def _collect_scores(data_type='lc'):
+    """读取所有 CSV 并计算各车的风险评分"""
+    locs = {f'location{i}': f'E:/0little/location{i}' for i in range(1, 6)}
+    loc_v0 = {f'location{i}': 100 if i < 5 else 80 for i in range(1, 6)}
+
+    scores = []
+    func = risk_score if data_type == 'lc' else following_risk_score
+
+    for loc_key, base_dir in locs.items():
+        v0 = loc_v0[loc_key]
+        if data_type == 'lc':
+            files = [os.path.normpath(f'{base_dir}/traffic_left_change.csv'),
+                     os.path.normpath(f'{base_dir}/traffic_right_change.csv')]
+        else:
+            files = [os.path.normpath(f'{base_dir}/traffic_following_change.csv')]
+
+        for fp in files:
+            if not os.path.exists(fp):
+                continue
+            df = pd.read_csv(fp)
+            for (vid, src), grp in df.groupby(['ID', 'Source']):
+                grp = grp.sort_values('Frame')
+                scores.append(func(grp, v0))
+
+    return np.array(scores)
+
+
+def run_kmeans_threshold():
+    """对风险评分运行 K-means (K=3) 聚类，输出新阈值并绘图"""
+    from sklearn.cluster import KMeans
+    from scipy.stats import gaussian_kde
+
+    print('\n' + '=' * 72)
+    print('  K-means 一维风险评分聚类 (K=3)')
+    print('=' * 72)
+
+    results = {}
+
+    for data_type, scenario_name in [('lc', 'Lane Change'), ('fl', 'Following')]:
+        scores = _collect_scores(data_type)
+        n = len(scores)
+        if n == 0:
+            continue
+
+        # K-means clustering
+        X = scores.reshape(-1, 1)
+        km = KMeans(n_clusters=3, random_state=42, n_init=10)
+        labels = km.fit_predict(X)
+
+        # Sort clusters by center value (low → mid → high)
+        centers = km.cluster_centers_.flatten()
+        order = np.argsort(centers)
+        centers_sorted = centers[order]
+        label_map = {old: new for new, old in enumerate(order)}
+        labels_mapped = np.array([label_map[l] for l in labels])
+
+        # Statistics
+        counts = [int(np.sum(labels_mapped == i)) for i in range(3)]
+        thresholds = {
+            'mid': (centers_sorted[0] + centers_sorted[1]) / 2,
+            'high': (centers_sorted[1] + centers_sorted[2]) / 2,
+        }
+        cur = THRESH_LANE_CHANGE if data_type == 'lc' else THRESH_FOLLOWING
+
+        # K-means 边界 → 重新统计
+        labels_new = np.zeros(n, dtype=int)
+        labels_new[scores >= thresholds['high']] = 2
+        labels_new[(scores >= thresholds['mid']) & (scores < thresholds['high'])] = 1
+
+        print(f'\n  >> {scenario_name} (n={n})')
+        print(f'  {"":>12s} {"Low Risk":>10s} {"Mid Risk":>10s} {"High Risk":>10s}')
+        print(f'  {"Cluster Center":>12s} {centers_sorted[0]:10.4f} '
+              f'{centers_sorted[1]:10.4f} {centers_sorted[2]:10.4f}')
+        print(f'  {"Count":>12s} {counts[0]:>10d} {counts[1]:>10d} {counts[2]:>10d}')
+        print(f'  {"Proportion":>12s} {counts[0]/n*100:9.1f}% '
+              f'{counts[1]/n*100:9.1f}% {counts[2]/n*100:9.1f}%')
+        print(f'  K-means thresholds:  mid >= {thresholds["mid"]:.4f},  '
+              f'high >= {thresholds["high"]:.4f}')
+        print(f'  Current thresholds:  mid >= {cur["mid"]:.2f},  '
+              f'high >= {cur["high"]:.2f}')
+
+        new_pcts = [np.sum(labels_new == i) / n * 100 for i in range(3)]
+        print(f'  K-means labels:  Low={int(np.sum(labels_new==0))}({new_pcts[0]:.1f}%)  '
+              f'Mid={int(np.sum(labels_new==1))}({new_pcts[1]:.1f}%)  '
+              f'High={int(np.sum(labels_new==2))}({new_pcts[2]:.1f}%)')
+
+        results[data_type] = {
+            'scores': scores, 'centers': centers_sorted,
+            'counts': counts, 'thresholds': thresholds,
+            'current': cur, 'scenario_name': scenario_name,
+        }
+
+    _plot_kmeans_thresholds(results)
+
+
+def _plot_kmeans_thresholds(results):
+    """绘制 K-means 聚类结果"""
+    import matplotlib
+    matplotlib.use('Agg')
+    import matplotlib.pyplot as plt
+    from scipy.stats import gaussian_kde
+
+    n_types = len(results)
+    fig, axes = plt.subplots(1, n_types, figsize=(n_types * 6, 4))
+    if n_types == 1:
+        axes = [axes]
+
+    colors = ['#27ae60', '#f39c12', '#e74c3c']
+
+    for ax_idx, (data_type, res) in enumerate(results.items()):
+        scores = res['scores']
+        centers = res['centers']
+        thresh = res['thresholds']
+        cur = res['current']
+        name = res['scenario_name']
+
+        ax = axes[ax_idx]
+
+        # Histogram
+        ax.hist(scores, bins=50, color='gray', alpha=0.35, edgecolor='white', density=True)
+
+        # KDE curve
+        try:
+            kde = gaussian_kde(scores)
+            xs = np.linspace(scores.min(), scores.max(), 200)
+            ax.plot(xs, kde(xs), 'k-', linewidth=1.5, alpha=0.7)
+        except Exception:
+            xs = np.linspace(scores.min(), scores.max(), 200)
+
+        # Cluster centers (dashed colored lines)
+        for i, c in enumerate(centers):
+            ax.axvline(c, color=colors[i], linestyle='--', linewidth=1.5, alpha=0.8,
+                       label=f'C{i} center={c:.3f}')
+
+        # K-means thresholds (navy dotted lines)
+        ax.axvline(thresh['mid'], color='navy', linestyle=':', linewidth=1.5,
+                   label=f'Kmeans mid={thresh["mid"]:.3f}')
+        ax.axvline(thresh['high'], color='navy', linestyle=':', linewidth=1.5,
+                   label=f'Kmeans high={thresh["high"]:.3f}')
+
+        # Current thresholds (red dashed)
+        ax.axvline(cur['mid'], color='red', linestyle='-', linewidth=1, alpha=0.6,
+                   label=f'Current mid={cur["mid"]:.2f}')
+        ax.axvline(cur['high'], color='red', linestyle='-', linewidth=1, alpha=0.6,
+                   label=f'Current high={cur["high"]:.2f}')
+
+        counts = res['counts']
+        n = len(scores)
+        info_text = (f'{name} (n={n})\n'
+                     f'Low Risk:  {counts[0]} ({counts[0]/n*100:.0f}%)\n'
+                     f'Mid Risk:  {counts[1]} ({counts[1]/n*100:.0f}%)\n'
+                     f'High Risk: {counts[2]} ({counts[2]/n*100:.0f}%)')
+        ax.text(0.97, 0.97, info_text, transform=ax.transAxes, va='top', ha='right',
+                fontsize=8, bbox=dict(boxstyle='round', facecolor='white', alpha=0.85))
+
+        ax.set_xlabel('Risk Score', fontsize=11)
+        ax.set_ylabel('Density', fontsize=11)
+        ax.set_title(f'{name} — K-means (K=3) Thresholds', fontsize=12, fontweight='bold')
+        ax.legend(fontsize=6.5, loc='upper left')
+        ax.grid(axis='y', alpha=0.3)
+
+    plt.tight_layout()
+    out_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                           'weight_sensitivity')
+    os.makedirs(out_dir, exist_ok=True)
+    out_path = os.path.join(out_dir, 'kmeans_thresholds.png')
+    plt.savefig(out_path, dpi=150, bbox_inches='tight')
+    plt.close()
+    print(f'\n  Saved: {out_path}')
+
+
+if __name__ == '__main__':
+    run_kmeans_threshold()
