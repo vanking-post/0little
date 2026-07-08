@@ -163,7 +163,7 @@ def panel_xy_trajectory(ax, veh_traj, veh_sample, curves, x_range,
     ax.set_xlabel('X (m)', fontsize=11)
     ax.set_ylabel('Y (m)', fontsize=11)
     ax.tick_params(labelsize=10)
-    ax.legend(fontsize=10, loc='upper right', markerscale=0.8)
+    ax.legend(fontsize=10, loc='best', markerscale=0.8)
     ax.set_title('XY 轨迹', fontsize=13, fontweight='bold')
 
 
@@ -209,7 +209,7 @@ def panel_surrounding(ax, veh_sample, side='following'):
     ax.tick_params(labelsize=10)
     handles, labels = ax.get_legend_handles_labels()
     if handles:
-        ax.legend(fontsize=7, ncol=2, loc='upper right')
+        ax.legend(fontsize=7, ncol=2, loc='best')
     ax.set_title('周边车距时序', fontsize=13, fontweight='bold')
 
 
