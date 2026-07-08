@@ -342,11 +342,15 @@ def _plot_kmeans_thresholds(results):
 
         # ── 低分区域放大窗（0-0.02 百分比柱状图） ──
         if len(zoom_scores) > 0:
-            ax_inset = ax.inset_axes([0.55, 0.18, 0.42, 0.32])
+            # 右侧居中正方形
+            if data_type == 'fl':
+                ax_inset = ax.inset_axes([0.58, 0.28, 0.35, 0.35])
+            else:
+                ax_inset = ax.inset_axes([0.55, 0.30, 0.35, 0.35])
 
             bins_zoom = min(20, max(5, int(len(zoom_scores) / 50)))
             counts, edges = np.histogram(zoom_scores, bins=bins_zoom, range=(0, zoom_xmax))
-            pcts = counts / len(scores) * 100  # 百分比
+            pcts = counts / len(scores) * 100
             centers_bins = (edges[:-1] + edges[1:]) / 2
             widths = np.diff(edges)
 
@@ -358,14 +362,13 @@ def _plot_kmeans_thresholds(results):
                           transform=ax_inset.transAxes, va='top', ha='right',
                           fontsize=7, bbox=dict(boxstyle='round', facecolor='white', alpha=0.8))
 
-            ax_inset.set_xlim(0, zoom_xmax)
-            ax_inset.set_xlabel('Risk Score', fontsize=7)
+            # 跟驰：x=0 居中，范围 [-0.01, 0.01]
+            if data_type == 'fl':
+                ax_inset.set_xlim(-0.01, 0.01)
+            else:
+                ax_inset.set_xlim(0, zoom_xmax)
             ax_inset.set_ylabel('% of total', fontsize=7)
-            ax_inset.tick_params(labelsize=6)
-            ax_inset.grid(axis='y', alpha=0.3)
-            ax_inset.set_xlabel('Risk Score (zoomed)', fontsize=7)
-            ax_inset.set_ylabel('Density', fontsize=7)
-            ax_inset.tick_params(labelsize=6)
+            ax_inset.tick_params(labelsize=6, labelbottom=False)
             ax_inset.grid(axis='y', alpha=0.3)
 
         counts = res['counts']
