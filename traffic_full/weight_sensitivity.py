@@ -541,7 +541,9 @@ def run_sensitivity(data_type='lc'):
                               f'{scenario_en} Risk Score Scatter Matrix',
                               os.path.join(out_sub, '08_score_scatter_matrix.png'))
 
-    # 7. 保存结果 CSV
+    # 7. 保存结果 CSV（评分保留三位小数）
+    score_cols_all = [c for c in result_df.columns if c.startswith('score_')]
+    result_df[score_cols_all] = result_df[score_cols_all].round(3)
     csv_path = os.path.join(OUT_DIR, f'{data_type}_sensitivity_results.csv')
     result_df.to_csv(csv_path, index=False)
     print(f'\n  Saved: {csv_path}')
