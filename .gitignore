@@ -54,3 +54,4 @@ node_modules/
 
 # === 一次性工具 ===
 collect_env_info.py
+resume-autofill/
